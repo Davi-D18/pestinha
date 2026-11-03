@@ -42,6 +42,15 @@ class PetState:
         self.at_desk = False
         self.desk_top = None        # y (na tela) da tampa do notebook quando ele está sentado: o corpo para ali
         self.castigo = False        # no cantinho do castigo: parado, sem passear
+        self.groove = 0.0           # 0..1: música tocando (desenha notas e fone na cabeça)
+        self.comer_para = 0.0       # até quando a mordida anima (migalhas saindo da boca)
+        self.cafeina_ate = 0.0      # café tomado: pulinhos nervosos até aqui
+        self.beijo_para = 0.0       # coraçãozinho do beijo na tela até aqui
+        self.digitar_para = 0.0     # tandem de digitação: patinhas digitando até aqui
+        self.quieto_ate = 0.0       # modo Tacinho: fica quietinho num canto até aqui
+        self.dream_path = None      # caminho da imagem do sonho (mostrada enquanto ele dorme)
+        self.dream_de = 0.0         # quando o sonho começou (para o fade do balão)
+        self.dream_ate = 0.0        # até quando o sonho fica na tela
 
     def mark_caress(self, now=None):
         """Marca que ele está recebendo carinho agora (dura um instante)."""
@@ -60,3 +69,15 @@ class PetState:
     def dizzy(self, now=None):
         """Diz se ele está tonto (depois de uma batida forte)."""
         return (time.monotonic() if now is None else now) < self.dizzy_until
+
+    def cafeina(self, now=None):
+        """Diz se ele está na cafeína (os pulinhos nervosos do café)."""
+        return (time.monotonic() if now is None else now) < self.cafeina_ate
+
+    def digitando(self, now=None):
+        """Diz se está no tandem de digitação (você digitando há tempo, ele junto)."""
+        return (time.monotonic() if now is None else now) < self.digitar_para
+
+    def quieto(self, now=None):
+        """Diz se está no modo Tacinho (sentado num canto, só piscando)."""
+        return (time.monotonic() if now is None else now) < self.quieto_ate

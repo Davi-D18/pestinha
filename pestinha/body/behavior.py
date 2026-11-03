@@ -55,6 +55,14 @@ class Behavior:
         self.march_dir = 1
         self.next_glance = 0.0
         self.screen_areas = []      # áreas de todos os monitores, atualizadas pelo app
+        self.groove = 0.0           # SOUND alto com música tocando: ele dança no ritmo
+        self._beat = 0.0            # o pulso da dança (um hop no compasso)
+        self.treino = None          # malhação em andamento: ("fim", "próximo pulo")
+        self.next_treino = 0.0      # quando pode malhar de novo
+        self.energy = 1.0           # energia da homeostase (o appimenta aqui; para decidir malhar)
+        self.comida = None          # (x, y) da comida na tela, ligada pelo app
+        self.presente = None        # (x, y) da caixinha-surpresa na tela, ligada pelo app
+        self._cafeina_prox = 0.0    # quando vale o próximo pulinho nervoso do café
 
     def look_at(self, x, y, now):
         """Olha para um ponto da tela por alguns segundos."""
@@ -179,6 +187,17 @@ class Behavior:
             self.next_roam = now + 1.0
             return
 
+        # modo Tacinho: fica quietinho no canto mais perto (parecido com o castigo, sem rancor)
+        if st.quieto(now):
+            left, _top, right, _bottom = bounds
+            canto = left + 90 if body.x - left < right - body.x else right - 90
+            if abs(body.x - canto) > 12:
+                self._slide_to(canto, 90.0)
+            else:
+                body.vx = 0.0
+            self.next_roam = now + 1.0
+            return
+
         # tonto, dormindo ou ganhando carinho: fica paradinho
         if st.at_desk:                                  # sentado no notebook: trabalha, sem passear
             body.vx = 0.0
@@ -235,10 +254,57 @@ class Behavior:
             self._protest_move(dt, now, left, right)
             return
 
+        # malhação: uma roda de pulinhos no lugar
+        if self.treino is not None:
+            fim, prox = self.treino
+            if now >= fim:
+                self.treino = None
+                self.next_treino = now + random.uniform(300.0, 900.0)
+            elif now >= prox:
+                self.treino = (fim, now + 0.75)
+                body.jump(random.choice((-45.0, 45.0)), -self.tone.hop_power() * 0.9, random.uniform(-150, 150))
+            return
+
+        # no ritmo da música: um pulinho por compasso quando SOUND está alto
+        if (self.groove > 0.55 and now >= self._beat
+                and self.emotion in ("feliz", "contente", "curioso", "observando")):
+            self._beat = now + 0.54
+            body.jump(random.choice((-30.0, 0.0, 30.0)), -self.tone.hop_power() * 0.6,
+                      random.choice((-1, 1)) * 90.0)
+            return
+
+        # caçar a comida: se há um biscoito na tela, a prioridade é chegar nele (onde quer que esteja)
+        if self.comida is not None and self.emotion not in STILL and body.upright():
+            if abs(self.comida[0] - body.x) > 30:
+                self._slide_to(self.comida[0], 165.0)
+            else:
+                body.vx = 0.0
+            return
+
+        # caçar o presente: mesmo trato da comida — chega na caixinha para abrir
+        if self.presente is not None and self.emotion not in STILL and body.upright():
+            if abs(self.presente[0] - body.x) > 30:
+                self._slide_to(self.presente[0], 160.0)
+            else:
+                body.vx = 0.0
+            return
+
+        # café no pulso: enquanto a cafeína dura, pulinhos nervosos rápidos no lugar
+        if st.cafeina(now):
+            if now >= self._cafeina_prox:
+                self._cafeina_prox = now + random.uniform(0.25, 0.4)
+                body.jump(random.choice((-120.0, 120.0)), -480.0, random.choice((-1, 1)) * 60.0)
+            return
+
         # brincar com a bolinha (chutar ou arremessar, conforme o estilo do pet)
         if self.play is not None and self.ball is not None and self.emotion not in STILL and not st.at_desk:
             if self.play.tick(now, body, self.ball, cursor, self.emotion, self.play_pull):
                 body.jump(0.0, -180.0)              # pulinho de quem acabou de chutar
+
+        # tandem de digitação: você digitando há tempo — ele fica paradinho "digitando junto"
+        if st.digitando():
+            body.vx = 0.0
+            return
 
         # passeio: a emoção escolhe o destino, o tom motor escolhe o jeito
         tone = self.tone
@@ -246,6 +312,12 @@ class Behavior:
             return
         if now >= self.next_roam and not self.crossing_screen:
             self.next_roam = now + random.uniform(*prof["roam_interval"]) * tone.roam_scale()
+            # energizado e animado: às vezes, no lugar de passear, faz uma roda de malhação
+            if (random.random() < 0.3 and self.mission is None and self.energy > 0.35
+                    and self.emotion in ("feliz", "contente", "curioso") and self.groove <= 0.55
+                    and now >= self.next_treino):
+                self.treino = (now + random.uniform(5.0, 8.0), now)
+                return
             self.target_x = self._pick_target(cursor, left, right)
             self.crossing_screen = bool(
                 self.target_x is not None and not (left + 80 <= self.target_x <= right - 80)
@@ -297,9 +369,12 @@ class Behavior:
         """Escolhe um ponto de destino no chão: perto da bolinha se ele está brincando, senão ao acaso."""
         x = self.body.x
         walk_left, walk_right = self._movement_limits(left, right)
-        if self.toy and self.emotion in ("feliz", "curioso", "contente") and random.random() < 0.75:
-            if abs(self.toy[0] - x) > 40:                  # brincando: vai atrás da bolinha
-                return min(walk_right - 80, max(walk_left + 80, self.toy[0]))
+        if self.comida is not None and self.emotion not in STILL:      # comida na tela: vai direto
+            return min(walk_right - 60, max(walk_left + 60, self.comida[0]))
+        forte = self.play_pull > 0.6                                   # brincadeira dominante na rede
+        if self.toy and self.emotion in ("feliz", "curioso", "contente"):
+            if abs(self.toy[0] - x) > 40 and random.random() < (0.95 if forte else 0.75):
+                return min(walk_right - 80, max(walk_left + 80, self.toy[0]))   # caça a bolinha
         if self.emotion == "curioso":
             side = 1 if x > cursor[0] else -1
             return min(walk_right - 80, max(walk_left + 80, cursor[0] + side * CURIOUS_DISTANCE))
@@ -308,6 +383,10 @@ class Behavior:
         if self.emotion == "observando" and random.random() < 1.0 - self.tone.drive():
             return None                         # às vezes só fica olhando mesmo
         vizinhos = self._lateral_neighbors(left, right)
+        if self.emotion == "bravo" and vizinhos and random.random() < 0.5:
+            # bravo e com outro monitor encostado: metade das vezes, muda de ares
+            v_left, v_right = random.choice(vizinhos)
+            return random.uniform(v_left + 100, v_right - 100)
         if vizinhos and random.random() < CROSS_SCREEN_CHANCE:
             v_left, v_right = random.choice(vizinhos)
             return random.uniform(v_left + 100, v_right - 100)
