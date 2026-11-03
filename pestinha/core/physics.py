@@ -72,6 +72,7 @@ class Body:
         self.surface = 0.0        # y da superfície onde está apoiado
         self.impacts = []         # velocidades das batidas desde a última leitura (px/s)
         self.held = False         # sendo segurado pelo mouse
+        self.chao_solido = False  # trota de monitor: o chão da tela DESTINO é sólido (não cai na emenda)
 
     def pop_impacts(self):
         """Devolve as batidas desde a última vez e zera a lista (para a rede sentir a batida)."""
@@ -175,8 +176,9 @@ class Body:
                 self._land(p_top, ey, hwnd)
                 return
 
-        # chão (acima da barra de tarefas)
-        if self.y + ey >= bottom and not _tem_vizinha(areas, atual, "bottom", self.x, ex, monitors):
+        # chão (acima da barra de tarefas); com chão sólido, nem a emenda com o monitor de baixo deixa passar
+        if self.y + ey >= bottom and (not _tem_vizinha(areas, atual, "bottom", self.x, ex, monitors)
+                                      or self.chao_solido):
             self._land(bottom, ey, None)
 
     def _land(self, surface, ey, platform):
