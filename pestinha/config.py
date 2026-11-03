@@ -49,6 +49,8 @@ DEFAULT_PERMISSIONS = {
     "mostrar_emocao": False,   # só vale com modo_teste ligado
     "bolinha": True,           # a bolinha para ele brincar
     "fogos": True,             # fogo de artifício quando ele fica feliz de verdade (rede)
+    "comida": True,            # biscoito/café/água: você oferece pelo menu e ele come (energia + humor)
+    "presente": True,          # caixinha-surpresa: ele vai até ela e abre (festa, bilhete ou cara triste)
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -79,6 +81,12 @@ PERMISSION_GROUPS = [
     ("Brincadeira", [
         ("fogos", "Fogos de artifício", "Quando ele fica muito feliz, a alegria da rede pode soltar um fogo."),
         ("bolinha", "Bolinha", "Uma bolinha para ele brincar. Se você levar para longe, ele reage (pode ficar triste, bravo ou ir atrás)."),
+        ("comida", "Comida e bebida",
+         "Você oferece um biscoito, um café ou água pelo menu do pet; ele chega, toma e reage "
+         "(café energia + nervosinho, água assenta)."),
+        ("presente", "Presente",
+         "Você dá uma caixinha-surpresa ('Dar um presente'): ele abre e pode sair feliz, "
+         "colar um bilhete ou ficar triste (é sorte da caixa)."),
     ]),
     ("Teste", [
         ("modo_teste", "Modo teste", "Tempos curtos: travessuras e emoções acontecem em segundos."),

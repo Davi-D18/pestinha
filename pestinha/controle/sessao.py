@@ -77,6 +77,14 @@ class SessaoMixin:
         if not bola_visivel:
             self.ball.cancel_drag()                  # guardada ou escondida na mão: larga
         self.ball.setVisible(bola_visivel)
+        comida_visivel = visible and self.perms["comida"] and self._comida_na_tela
+        if not comida_visivel:
+            self.comida.cancel_drag()
+        self.comida.setVisible(comida_visivel)
+        presente_visivel = visible and self.perms["presente"] and self._presente_na_tela
+        if not presente_visivel:
+            self.presente.cancel_drag()
+        self.presente.setVisible(presente_visivel)
         if not visible or not self.perms["fogos"]:
             self.festa.fogos.recolher()
         self.tray.set_state(self.paused, self.hidden, self.perms["modo_teste"])

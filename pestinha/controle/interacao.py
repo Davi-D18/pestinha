@@ -10,14 +10,21 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 from ..log import log
 import time
 from PySide6.QtWidgets import QMenu
-from ..body.pet import cursor_pos
+from ..store import read_json, write_json
+from ..core.emotion import PRIORITY
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
     COOLDOWN_CUTUCADA as POKE_COOLDOWN,
     ESPERA_MEDIDA_CUTUCADA as POKE_PROBE,
     HZ_RESPOSTA_CHEIA as POKE_FULL_HZ,
     RESPOSTA_MINIMA as POKE_MIN_RESPONSE,
+    RECOMPENSA_BALANCO,
+    RECOMPENSA_BEIJO,
+    DURACAO_BEIJO,
+    DURACAO_TACINHO,
 )
+from ..body.bolinha import load_sprite
+from ..body.pet import cursor_pos
 
 
 class InteracaoMixin:
@@ -121,11 +128,19 @@ class InteracaoMixin:
         menu.addSeparator()
         item("Jogar a bolinha perto dele", self.menu_place_ball, perms["bolinha"])
         item("Guardar a bolinha", self.menu_store_ball, perms["bolinha"] and not self.ball_stored)
+        item("Oferecer biscoito", lambda: self.menu_comida("biscoito"), perms["comida"])
+        item("Servir o café", lambda: self.menu_comida("cafe"), perms["comida"])
+        item("Água fresca", lambda: self.menu_comida("agua"), perms["comida"])
+        item("Recolher o presente" if self._presente_na_tela else "Dar um presente",
+             self.menu_presente, perms["presente"])
+        quieto = self.pet_state.quieto()
+        item("Pode voltar a conversar" if quieto else "Tacinho (fica quietinho 1 h)", self.menu_quieto)
         menu.addSeparator()
         item("Pedir para dormir", self.menu_sleep, not self.asleep)
         item("Pedir para trabalhar", self.menu_pedir_trabalho)
         item("Mostrar o notebook" if self.mesa.escondido else "Esconder o notebook",
              self.menu_alternar_notebook)
+        item("Trocar de monitor", self.menu_trocar_monitor, len(self.screen_bounds()) > 1)
         item("Fazer uma travessura agora", self.menu_mischief, perms["travessuras"])
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
@@ -164,6 +179,88 @@ class InteracaoMixin:
         self.ball_stored = True
         self.update_visibility()
 
+    def menu_comida(self, tipo="biscoito"):
+        """Menu: 'Oferecer biscoito'/'Servir o café'/'Água fresca' — põe a comida perto dele no chão. Clicar de novo com o mesmo tipo recolhe."""
+        if self._comida_na_tela and self.comida.tipo == tipo:
+            self._comida_na_tela = False
+        else:
+            self._comida_na_tela = True
+            self.comida.tipo = tipo
+            sprite = {"biscoito": self.conteudo.biscoito,
+                      "cafe": self.conteudo.cafe,
+                      "agua": self.conteudo.agua}[tipo]
+            self.comida.sprite = load_sprite(sprite)
+            self.comida.body.x = self.pet.body.x + 150
+            self.comida.body.y = self.bounds()[3] - 40
+            self.comida.body.vx = self.comida.body.vy = 0.0
+            self.comida.raise_()                 # a comida nasce na frente do pet
+            self._comida_elevada_em = time.monotonic()
+            log(f"[comida] {tipo} na tela")
+        self.update_visibility()
+
+    def menu_presente(self):
+        """Menu: 'Dar um presente' (ou 'Recolher o presente'): a caixinha-surpresa perto dele."""
+        if self._presente_na_tela:
+            self._presente_na_tela = False
+        else:
+            self._presente_na_tela = True
+            self.presente.body.x = self.pet.body.x + 150
+            self.presente.body.y = self.bounds()[3] - 40
+            self.presente.body.vx = self.presente.body.vy = 0.0
+            self.presente.raise_()
+            self._presente_elevado_em = time.monotonic()
+            log("[presente] caixinha na tela")
+        self.update_visibility()
+
+    def menu_quieto(self):
+        """Menu: 'Tacinho' (1 h quietsinho num canto) ou volta ao normal."""
+        agora = time.monotonic()
+        if self.pet_state.quieto_ate > agora:
+            self.pet_state.quieto_ate = 0.0
+            log("[tacinho] de volta ao normal")
+        else:
+            self.pet_state.quieto_ate = agora + DURACAO_TACINHO
+            log("[tacinho] vai ficar quietinho por 1 h")
+        self.update_visibility()
+
+    def on_shaken(self):
+        """Você chacoalhou o pet segurando (3 trocas de lado na janela): ele gargalha e fica alegrinho."""
+        if self._congelado():
+            return
+        agora = time.monotonic()
+        self.conditioning.outcome(agora)
+        self.drives.stimulate("drag")
+        self.drives.touched("drag")
+        self.memory.on_interaction()
+        self.timeline.note_interaction()
+        self._premio_extra += RECOMPENSA_BALANCO
+        self.pet_state.feliz_ate = agora + 1.5
+        self.pet_state.dizzy_until = max(self.pet_state.dizzy_until, agora + 1.0)
+        self.emotion.force("feliz", 1.2, agora, PRIORITY["carinho"])
+        if self.pet.body.grounded:
+            self.pet.body.jump(0.0, -260.0)
+        log("[balanço] gargalhada")
+
+    def on_kiss(self):
+        """Você deu um beijo (dois cliques no rosto): coraçãozinho na tela; o primeiro do dia vale recompensa grande."""
+        if self._congelado():
+            return
+        agora = time.monotonic()
+        dia = time.strftime("%Y-%m-%d")
+        arquivo = self.paths.beijos
+        dados = read_json(arquivo, default={})
+        primeiro = isinstance(dados, dict) and dados.get("dia") != dia
+        self.pet_state.beijo_para = agora + DURACAO_BEIJO
+        self.emotion.force("feliz", 1.5, agora, PRIORITY["carinho"])
+        self.memory.on_interaction()
+        self.timeline.note_interaction()
+        if primeiro:
+            write_json(arquivo, {"dia": dia})
+            self._premio_extra += RECOMPENSA_BEIJO
+            log(f"[beijo] beijo do dia ({dia})")
+        else:
+            log("[beijo] beijo extra (o do dia já valeu)")
+
     def menu_sleep(self):
         """Menu: 'Dormir' (baixa a energia: ele cochila em vez de ficar acordado)."""
         if self._congelado():
@@ -180,6 +277,26 @@ class InteracaoMixin:
         self.pet_state.at_desk = self.mesa.sentado
         if not self.mesa.sentado:
             self.pet_state.desk_top = None
+
+    def menu_trocar_monitor(self):
+        """Menu: leva o pet para a área útil do monitor seguinte; pousa no chão e fica lá."""
+        areas = self.screen_bounds()
+        if len(areas) < 2:
+            return
+        corpo = self.pet.body
+        atual = next((i for i, area in enumerate(areas)
+                      if area[0] <= corpo.x <= area[2] and area[1] <= corpo.y <= area[3]), 0)
+        left, _top, right, bottom = areas[(atual + 1) % len(areas)]
+        log(f"[tela] troca: do monitor {atual} para o {(atual + 1) % len(areas)} "
+            f"(chão y={bottom}) — areas {areas}")
+        corpo.x = (left + right) / 2
+        corpo.vx = corpo.vy = 0.0
+        corpo.angle = 0.0
+        corpo.y = bottom - corpo.extents()[1] - 2     # direto no chão: sem queda
+        corpo.surface = bottom                        # o "chão memorizado" é o da tela NOVA
+        corpo.grounded = True
+        corpo.platform = None
+        corpo.chao_solido = True                      # pulos não deixam mais cair na emenda
 
     def menu_pedir_trabalho(self):
         """Menu: 'Pedir para trabalhar' (ele pode aceitar, ou recusar com frustração)."""

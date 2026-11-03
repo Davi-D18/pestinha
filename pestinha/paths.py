@@ -143,6 +143,26 @@ class ConteudoPaths:
         return self.resolver("bolinha_tenis.png")
 
     @property
+    def biscoito(self):
+        """Imagem da comida (biscoito); sem o arquivo, o desenho de reserva."""
+        return self.resolver("biscoito.png")
+
+    @property
+    def cafe(self):
+        """Imagem do café (caneca); sem o arquivo, o desenho de reserva."""
+        return self.resolver("cafe.png")
+
+    @property
+    def agua(self):
+        """Imagem da água (copo); sem o arquivo, o desenho de reserva."""
+        return self.resolver("agua.png")
+
+    @property
+    def presente(self):
+        """Imagem do presente (caixinha); sem o arquivo, o desenho de reserva."""
+        return self.resolver("presente.png")
+
+    @property
     def bolinha_papel(self):
         """Imagem da bolinha de papel (ou panfleto) que ele atira na revolução."""
         return self.resolver("bolinha_papel.png")
@@ -208,6 +228,11 @@ class Paths:
     def panels(self):
         """Posição dos painéis e do notebook na tela."""
         return self.memory / "panels.json"
+
+    @property
+    def beijos(self):
+        """O dia do último beijo (o beijo grande é um por dia)."""
+        return self.memory / "beijos.json"
 
     @property
     def log(self):

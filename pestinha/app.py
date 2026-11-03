@@ -24,7 +24,9 @@ Quem faz o quê:
 
 import math
 import os
+import random
 import time
+from collections import deque
 
 from PySide6.QtCore import QObject, QSocketNotifier, QTimer
 from PySide6.QtGui import QGuiApplication
@@ -35,15 +37,27 @@ from . import log as log_module
 from . import migracao
 from . import plataforma
 from .ajustes import (
+    ALCANCE_COMIDA as FOOD_REACH,
     ATIVIDADE_MINIMA_VOO as REFLEX_MIN_HZ,
     BATIDA_FORTE as HARD_IMPACT,
     BATIDA_TONTA as DIZZY_IMPACT,
     DURACAO_TONTURA as DIZZY_SECONDS,
+    ENERGIA_COMIDA as FOOD_FILL,
+    GASTO_TREINO as TREINO_BURNT,
     INTERVALO_BATIDA as IMPACT_COOLDOWN,
     LIMIAR_CANTO_HZ,
+    PERTO_COMIDA as FOOD_NEAR,
     PUNICAO_DISPENSA as DISMISS_PENALTY,
     RECOMPENSA_CARINHO as CARESS_REWARD,
+    RECOMPENSA_COMIDA as FOOD_REWARD,
+    RECOMPENSA_PRESENTE,
     SILENCIO_MOUSE as MOUSE_QUIET,
+    ENERGIA_CAFE,
+    DURACAO_CAFEINA,
+    ENERGIA_AGUA,
+    DURACAO_ATENDE_AGUA,
+    DIGITACAO_ATRASO,
+    INTERVALO_BILHETE_DIGITANDO,
 )
 from .body.behavior import Behavior
 from .body.bolinha import Ball, load_sprite
@@ -73,7 +87,9 @@ from .sense import senses
 from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
 from .ui.ui import PanicHotkey, Tray
+from .world.comida import Comida
 from .world.mischief import MischiefEngine
+from .world.presente import Presente
 
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
 
@@ -138,17 +154,38 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.last_cursor = (0, 0)
         self.mouse_moved_at = 0.0
         self.timeline = TimelineRecorder(self.paths.timeline, lambda: self.perms["rotina"])
+        self.carga = 0.0                                  # 0..1: quão pesada está a máquina (HEAT)
+        self._trocas_janelas = deque(maxlen=16)           # APP_CHANGED dos últimos segundos (tempestade)
+        self._tempestade_ate = 0.0
+        self._proximo_sonho = time.monotonic() + random.uniform(180.0, 420.0)
 
         # ----- corpo e travessuras -----
         left, top, right, _bottom = self.bounds()
         self.pet = PetWindow(right - 220, top + 120, self.pet_state)
+        for pantalla, screen in enumerate(QGuiApplication.screens()):
+            g = screen.availableGeometry()
+            log(f"[tela] monitor {pantalla}: ({g.x()}, {g.y()}) a ({g.x() + g.width()}, "
+                f"{g.y() + g.height()}) — dpr {screen.devicePixelRatio()}")
         self.pet.aparencia = aparencia_de(pet_def.get("aparencia"))
         self.pet.poked.connect(self.on_poke)
         self.pet.drag_started.connect(self.on_drag_started)
         self.pet.drag_ended.connect(lambda: self.senses.set_dragging(False))
         self.pet.thrown.connect(self.on_thrown)
         self.pet.menu_requested.connect(self.show_pet_menu)
+        self.pet.shaken.connect(self.on_shaken)
+        self.pet.kissed.connect(self.on_kiss)
         self.ball_stored = False    # você guardou a bolinha pelo menu
+        self._comida_na_tela = False
+        self._premio_comida = 0.0   # recompensa pendente: ele acabou de comer (vai no learn do think)
+        self._premio_extra = 0.0    # recompensa pendente de beijo/balanço/presente (vai no learn)
+        self._comida_elevada_em = 0.0
+        self.comida = Comida(left + 560, self.bounds()[3] - 40, sprite=load_sprite(self.conteudo.biscoito))
+        self._presente_na_tela = False
+        self._presente_elevado_em = 0.0
+        self.presente = Presente(left + 560, self.bounds()[3] - 40,
+                                 sprite=load_sprite(self.conteudo.presente))
+        self._digita_desde = None   # você digitando desde quando (tandem de digitação)
+        self._digita_bilhete_em = 0.0
         self.mischief = MischiefEngine(self.conteudo)
         self.mischief.dismissed.connect(self.on_dismissed)
         self.behavior = Behavior(self.pet.body, self.pet_state, self.mischief)
@@ -342,9 +379,15 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             return
         self.idle_seconds = senses.get_idle_seconds()
         app = senses.get_active_app()
+        self.carga = plataforma.carga_sistema()
+        self.toca_musica = senses.musica_tocando()        # MPRIS da sessão: vale qualquer player
+        if self.toca_musica != getattr(self, "_tocava_musica", self.toca_musica):
+            self._tocava_musica = self.toca_musica
+            log(f"[música] MPRIS: {'tocando' if self.toca_musica else 'parou'}")
         self.activity = senses.detect_activity(app, self.idle_seconds, self.prof["away_after"])
         events = self.tracker.observe(app, self.activity)
         self.senses.on_events(events)
+        self._tempestade(events)
         for event in events:
             if event == "APP_CHANGED":
                 self.drives.stimulate("app")
@@ -362,8 +405,33 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                                       time.monotonic())
         fullscreen = senses.is_fullscreen()
         if fullscreen != self.fullscreen:
+            ficou_cheia = fullscreen and not self.fullscreen
             self.fullscreen = fullscreen
+            if ficou_cheia and not self.asleep and not self.castigo.dentro:
+                # susto do cinema: algo ocupou a tela de pegar a tela (o pulo vem da emoção assustado)
+                self.emotion.force("assustado", 1.2, time.monotonic(), PRIORITY["assustado"])
             self.update_visibility()
+
+    def _tempestade(self, events):
+        """
+        Trocas frenéticas de janela (Alt+Tab storm): muitas trocas em pouco tempo viram
+        uma crise curta - fica dramático e meio tonto. Guarda ~3 minutos de silêncio entre crises.
+        """
+        if "APP_CHANGED" not in events:
+            return
+        agora = time.monotonic()
+        self._trocas_janelas.append(agora)
+        trocas = [t for t in self._trocas_janelas if agora - t < 45.0]
+        self._trocas_janelas.clear()
+        self._trocas_janelas.extend(trocas)
+        if len(trocas) < 8 or agora < self._tempestade_ate:
+            return
+        self._tempestade_ate = agora + 180.0
+        self.senses.kick("MOTION", 1.0)
+        self.senses.kick("NOVELTY", 1.0)
+        self.pet_state.dizzy_until = max(self.pet_state.dizzy_until, agora + 1.2)
+        if self.emotion.force("dramatico", 2.5, agora, PRIORITY["dramatico"]):
+            self.drives.stimulate("app")
 
     def think(self):
         """Passo da rede (100 ms): recebe os sentidos, decide o motor vencedor e aplica no comportamento."""
@@ -389,6 +457,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.drives.update(dt, self.prof, self.asleep, moving, self.emotion.arousal,
                            self.activity == "AWAY", engaged=self.activity in ("PROGRAMMING", "DESIGNING"),
                            preso=self.castigo.dentro, visitado=self.castigo.visita > 0.5)
+        if self.behavior.treino is not None:      # malhação: os pulinhos gastam energia
+            self.drives.energy = max(0.0, self.drives.energy - dt * TREINO_BURNT)
         self.castigo.tick_lento(dt)
         if caressing:
             self.drives.stimulate("caress", dt)
@@ -413,11 +483,39 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         if taken and self.perms["bolinha"] and not self.ball_stored:
             self.senses.kick("TOY_TAKEN", 0.9)
         intensities["TOY_NEAR"] = near if self.perms["bolinha"] and not self.ball_stored else 0.0
+        # comida: o biscoito por perto entra na rede como FOOD (ele chega, come, enche energia).
+        # Vale na mão, valendo de janela/placa/sono: encostar o biscoito na boca dele é a mordida.
+        if self._comida_na_tela and self.perms["comida"]:
+            distancia = math.hypot(self.comida.body.x - body.x, self.comida.body.y - body.y)
+            intensities["FOOD"] = max(0.0, min(1.0, 1.0 - distancia / FOOD_NEAR))
+            na_mao = self.comida.dragging
+            solto_ha_pouco = not self.comida.handled_by_user(now)
+            if distancia < FOOD_REACH and (na_mao or solto_ha_pouco):
+                self._comer(self.comida.tipo, now)
+        else:
+            intensities["FOOD"] = 0.0
+        self.behavior.comida = ((self.comida.body.x, self.comida.body.y)
+                                if self._comida_na_tela and self.perms["comida"] else None)
+        # presente: a caixinha-surpresa perto dele abre (o resultado é sorteado)
+        if self._presente_na_tela and self.perms["presente"]:
+            distancia_p = math.hypot(self.presente.body.x - body.x, self.presente.body.y - body.y)
+            na_mao_p = self.presente.dragging
+            if distancia_p < FOOD_REACH and (na_mao_p or not self.presente.handled_by_user(now)):
+                self._abrir_presente(now)
+        self.behavior.presente = ((self.presente.body.x, self.presente.body.y)
+                                  if self._presente_na_tela and self.perms["presente"] else None)
         # sinais de estado: o pedido seu, o cantinho, a memória de fugas e a recusa
         intensities["PEDIDO"] = self.mesa.intensidade_pedido(now)
         intensities.update(self.castigo.sinais(body))  # preso, memória de fuga, placa, visita, receio, rancor
         intensities["RECUSA"] = self.pulso_recusa
         self.pulso_recusa = 0.0
+        intensities["HEAT"] = self.carga          # 0..1 de acordo com a carga da máquina
+        # música: o que toca (nome do app) OU o MPRIS da sessão entra como SOUND na rede.
+        # O estímulo vem ANTES da integração, então a influência passa pelo cérebro de verdade.
+        if self.toca_musica:
+            intensities["SOUND"] = max(intensities.get("SOUND", 0.0), 0.85)
+            self.senses.level["SOUND"] = max(self.senses.level["SOUND"], 0.85)
+        self._atualiza_tandem(now, intensities["TYPING"])   # digitação em tandem
         total_ms = max(1, round(dt * 1000))
         while total_ms > 0:
             chunk = min(100, total_ms)
@@ -425,6 +523,9 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.brain.step(chunk)
             total_ms -= chunk
         self.intensities = intensities
+        self.behavior.groove = 0.0 if self.asleep else self.senses.level["SOUND"]   # música: vira dança
+        self.pet_state.groove = self.behavior.groove                       # o rosto desenha notas e fone
+        self.behavior.energy = self.drives.energy
         motor = self.brain.motor_activity()
         st.tone.update(motor, dt)
 
@@ -451,6 +552,10 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             if self.mischief_ctl.penalty_active(now):
                 reward += DISMISS_PENALTY
         reward += self.castigo.punicao(now)          # ser preso é recompensa negativa: o castigo ensina
+        reward += self._premio_comida                # a comida devolve recompensa (aprende a querer)
+        reward += self._premio_extra                 # beijo do dia, gargalhada e festinha do presente
+        self._premio_comida = 0.0
+        self._premio_extra = 0.0
         self.brain.learn(reward, dt, self.prof["learn_rate"])
 
         if self.in_flight:
@@ -471,6 +576,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.timeline.note_interaction(dt)
 
         self.sleep.tick(now, body, self.in_flight, self.protest.stage, self.behavior.mission)
+        self._sonhos(now)
 
         emotion = self.emotion.update(motor, dt, self.prof)
         if self.protest.stage >= 2 and not self.asleep:
@@ -485,6 +591,96 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.memory.tick(now, self.prof["episode_ok"], self.prof["episode_window"])
         st.emotion = emotion
         self.behavior.on_emotion(emotion, time.monotonic())
+
+    def _comer(self, tipo, agora):
+        """Ele alcançou a comida: some com ela, aplica o efeito do tipo, acorda se estava dormindo e aprende."""
+        self._comida_na_tela = False
+        self.update_visibility()                     # a comida some AGORA (nada fica pendurado)
+        self._premio_comida = FOOD_REWARD
+        self.pet_state.comer_para = agora + 0.8      # migalhas de mordida visíveis
+        if self.asleep:
+            self.sleep.wake(startled=False)
+        self.memory.on_interaction()
+        if tipo == "cafe":
+            self.drives.energy = min(1.0, self.drives.energy + ENERGIA_CAFE)
+            self.pet_state.cafeina_ate = agora + DURACAO_CAFEINA
+            log(f"[comida] café({tipo}): energia {self.drives.energy:.2f} "
+                f"(cafeína por {DURACAO_CAFEINA:.0f} s)")
+        elif tipo == "agua":
+            self.drives.energy = min(1.0, self.drives.energy + ENERGIA_AGUA)
+            self.pet_state.dizzy_until = 0.0         # a água assenta: tira a tontura
+            self.emotion.force("contente", DURACAO_ATENDE_AGUA, agora, PRIORITY["carinho"])
+            log(f"[comida] água({tipo}): assentado, energia {self.drives.energy:.2f}")
+        else:
+            self.drives.energy = min(1.0, self.drives.energy + FOOD_FILL)
+            self.pet_state.feliz_ate = agora + 2.5
+            self.emotion.force("feliz", 2.0, agora, PRIORITY["carinho"])
+            if self.pet.body.grounded:
+                self.pet.body.jump(0.0, -350.0)      # pulinho de alegria
+            log(f"[comida] biscoito({tipo}): energia {self.drives.energy:.2f}")
+
+    def _abrir_presente(self, agora):
+        """Ele abriu o presente: a surpresa é sorteada — festa, bilhete engraçado ou cara triste."""
+        if self.asleep:
+            self.sleep.wake(startled=False)
+        self._presente_na_tela = False
+        self.update_visibility()                     # a caixinha some AGORA
+        self.memory.on_interaction()
+        self.pet_state.comer_para = agora + 0.8      # o mesmo efeito de migalhas: o "papel picado"
+        tiro = random.random()
+        if tiro < 0.35:                              # festa: pulinho, energia e recompensa
+            self._premio_extra += RECOMPENSA_PRESENTE
+            self.pet_state.feliz_ate = agora + 3.0
+            self.emotion.force("feliz", 2.0, agora, PRIORITY["carinho"])
+            if self.pet.body.grounded:
+                self.pet.body.jump(0.0, -400.0)
+            log("[presente] abriu: era uma festa")
+        elif tiro < 0.7:                             # bilhete: um recadinho engraçado
+            if self._soltar_bilhete():
+                log("[presente] abriu: veio um bilhete")
+        else:                                        # pedra dentro da caixa: cara triste por um pouco
+            self.emotion.force("triste", 2.5, agora, PRIORITY["protesto"])
+            log("[presente] abriu: era uma pedra (cara triste)")
+
+    def _soltar_bilhete(self):
+        """Põe um bilhete (recadinho) no alto da tela; falso se travessuras/bilhetes estiverem desligados ou não houver recado."""
+        if not (self.perms["travessuras"] and self.perms["bilhetes"]):
+            return False
+        left, top, right, _bottom = self.bounds()
+        x = random.uniform(left + 240.0, max(left + 240.0, right - 240.0))
+        return self.mischief.soltar_bilhete(self.pet_state.emotion, x, top + 150.0)
+
+    def _atualiza_tandem(self, agora, digitando):
+        """Você digitando há um tempo seguido: ele fica "digitando junto" e, de vez em quando, cola um bilhete engraçado."""
+        st = self.pet_state
+        if digitando < 0.55 or self.pet.body.held:
+            self._digita_desde = None
+            return
+        if self._digita_desde is None:
+            self._digita_desde = agora
+            return
+        if agora - self._digita_desde >= DIGITACAO_ATRASO:
+            st.digitar_para = agora + 1.0            # a janela refresca enquanto você digita
+            if agora - self._digita_bilhete_em >= INTERVALO_BILHETE_DIGITANDO:
+                self._digita_bilhete_em = agora
+                if self._soltar_bilhete():
+                    log("[digitação] bilhete engraçado do tandem")
+
+    def _sonhos(self, now):
+        """Dormindo, ele sonha de vez em quando: um mini meme num balãozinho acima da cabecinha."""
+        st = self.pet_state
+        if st.dream_path and now > st.dream_ate:
+            st.dream_path = None
+            st.dream_ate = 0.0
+            st.dream_de = 0.0
+        if not self.asleep or now < self._proximo_sonho:
+            return
+        self._proximo_sonho = now + random.uniform(150.0, 420.0)
+        path = config.meme_for(self.conteudo.memes, random.choice(config.EMOTIONS))
+        if path:
+            st.dream_path = str(path)
+            st.dream_de = now
+            st.dream_ate = now + 8.0
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
@@ -523,6 +719,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.protest_ctl.carry(now, self.asleep or preso)
         ball_bounds = self._bounds_at(areas, self.ball.body.x, self.ball.body.y)
         self.ball.step(dt, ball_bounds, areas, monitores)
+        if self.comida.isVisible():
+            comida_bounds = self._bounds_at(areas, self.comida.body.x, self.comida.body.y)
+            self.comida.step(dt, comida_bounds, areas, monitores)
+        if self.presente.isVisible():
+            presente_bounds = self._bounds_at(areas, self.presente.body.x, self.presente.body.y)
+            self.presente.step(dt, presente_bounds, areas, monitores)
         self.revolucao.tick(
             now, dt, bounds, cursor, self.cursor_vel, self.pet.body, self.pet.isVisible(),
             revoltado=self.protest.stage == 4 and not self.asleep and not preso and self.pet.isVisible(),
@@ -540,6 +742,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior.toy = (self.ball.body.x, self.ball.body.y) if self.ball.isVisible() else None
         self.mischief.tick(dt, bounds[3])
         self.pet.animate(now)
+        if self.comida.isVisible() and now - self._comida_elevada_em > 2.0:
+            self.comida.raise_()                 # o pet sobe por cima a cada 2 s; o biscoito sobe junto
+            self._comida_elevada_em = now
+        if self.presente.isVisible() and now - self._presente_elevado_em > 2.0:
+            self.presente.raise_()               # idem a caixinha (continua clicável)
+            self._presente_elevado_em = now
         self.maybe_mischief(now, dt, bounds, cursor, motores)
 
     def _atualizar_mesa(self, now):
@@ -568,8 +776,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 for g in (t.geometry() for t in self.mischief.things if not t.carried)]
 
     def maybe_mischief(self, now, dt, bounds, cursor, motores):
-        """Decide se vai aprontar uma travessura agora (não aprontar de castigo nem dormindo)."""
-        if self.castigo.dentro:                      # de castigo não apronta (e não deixa objeto solto)
+        """Decide se vai aprontar uma travessura agora (não aprontar de castigo, dormindo ou no Tacinho)."""
+        if self.castigo.dentro or self.pet_state.quieto(now):   # preso ou quietsinho: nada de travessura
             return
         self.mischief_ctl.maybe_act(
             now, dt, bounds, cursor, self.pet.body, motores=motores,

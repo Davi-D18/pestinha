@@ -91,6 +91,33 @@ TAMANHO_MEME = 230              # px, lado maior de um meme entregue
 TAMANHO_MEME_CANTO = 120        # px, meme pequeno de revolta no cantinho
 
 # ---------------------------------------------------------------------------
+# Comida
+# ---------------------------------------------------------------------------
+ALCANCE_COMIDA = 70             # px entre ele e a comida para dar a mordida
+PERTO_COMIDA = 260              # px: raio em que a comida entra na rede (FOOD)
+ENERGIA_COMIDA = 0.35           # quanta energia o biscoito devolve
+RECOMPENSA_COMIDA = 0.30        # recompensa na rede quando ele come
+ENERGIA_CAFE = 0.55             # o café devolve mais energia e deixa nervoso
+DURACAO_CAFEINA = 10.0          # s de pulinhos nervosos depois do café
+ENERGIA_AGUA = 0.08             # a água assenta: quase nada de energia
+DURACAO_ATENDE_AGUA = 4.0       # s de calma depois da água
+RECOMPENSA_PRESENTE = 0.35      # recompensa quando o presente era uma festa
+RECOMPENSA_BALANCO = 0.18       # recompensa da gargalhada do chacoalho
+RECOMPENSA_BEIJO = 0.50         # recompensa do primeiro beijo do dia
+JANELA_BALANCO = 1.2            # s de janela para contar as trocas de lado do chacoalho
+REVERSOS_BALANCO = 3            # trocas de lado numa janela curta para gargalhar
+PASSO_BALANCO = 45.0            # px de curso mínimo para valer uma troca de lado
+DURACAO_BEIJO = 1.6             # s que o coraçãozinho fica na tela
+DURACAO_TACINHO = 3600.0        # s de "Tacinho" (fica quietinho por 1 h)
+DIGITACAO_ATRASO = 30.0         # s digitando seguidos até ele "digitar junto"
+INTERVALO_BILHETE_DIGITANDO = 90.0  # s entre bilhetes engraçados do tandem de digitação
+
+# ---------------------------------------------------------------------------
+# Malhação
+# ---------------------------------------------------------------------------
+GASTO_TREINO = 0.006            # energia por segundo de treino (energia/s)
+
+# ---------------------------------------------------------------------------
 # Fogos de artifício
 # ---------------------------------------------------------------------------
 TAMANHO_JANELA_FOGOS = 420      # px
@@ -199,6 +226,25 @@ _LIMITES = {
     "PEDIDO_VALIDADE_S": (float, 1.0, 600.0),
     "JANELA_PEDIDOS_S": (float, 60.0, 86400.0),
     "FELIZ_APOS_CARINHO": (float, 0.0, 30.0),
+    "ALCANCE_COMIDA": (int, 10, 500),
+    "PERTO_COMIDA": (int, 50, 2000),
+    "ENERGIA_COMIDA": (float, 0.0, 1.0),
+    "RECOMPENSA_COMIDA": (float, 0.0, 10.0),
+    "ENERGIA_CAFE": (float, 0.0, 1.0),
+    "DURACAO_CAFEINA": (float, 0.0, 120.0),
+    "ENERGIA_AGUA": (float, 0.0, 1.0),
+    "DURACAO_ATENDE_AGUA": (float, 0.0, 60.0),
+    "RECOMPENSA_PRESENTE": (float, 0.0, 10.0),
+    "RECOMPENSA_BALANCO": (float, 0.0, 10.0),
+    "RECOMPENSA_BEIJO": (float, 0.0, 10.0),
+    "JANELA_BALANCO": (float, 0.2, 10.0),
+    "REVERSOS_BALANCO": (int, 2, 20),
+    "PASSO_BALANCO": (float, 5.0, 500.0),
+    "DURACAO_BEIJO": (float, 0.0, 30.0),
+    "DURACAO_TACINHO": (float, 0.0, 86400.0),
+    "DIGITACAO_ATRASO": (float, 0.0, 600.0),
+    "INTERVALO_BILHETE_DIGITANDO": (float, 0.0, 7200.0),
+    "GASTO_TREINO": (float, 0.0, 1.0),
     "LIMIAR_SENTAR_HZ": (float, 0.0, 200.0),
     "LIMIAR_LEVANTAR_HZ": (float, 0.0, 200.0),
     "LIMIAR_FUGA_HZ": (float, 0.0, 200.0),
