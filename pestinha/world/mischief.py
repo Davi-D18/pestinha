@@ -106,6 +106,15 @@ class MischiefEngine(QObject):
 
     # ---------------- colocação ----------------
 
+    def soltar_bilhete(self, emotion, x, y):
+        """Cria um bilhete novo e o põe num ponto: usado pelo presente e pelo tandem de digitação."""
+        thing = self._make("bilhete", emotion, small=False)
+        if thing is None:
+            return False
+        thing.place(x, y)
+        self._add(thing)
+        return True
+
     def show_in_corner(self, thing, bounds, cursor):
         """Põe o objeto num canto da tela (travessura 'de revolta')."""
         left, top, right, bottom = bounds

@@ -95,6 +95,62 @@ class Ball(QWidget):
                            c + QPointF(math.cos(a + 0.9) * RADIUS * 0.8, math.sin(a + 0.9) * RADIUS * 0.8))
             p.end()
             return
+        if self.kind == "comida":
+            # reservas (sem assets/comum/<tipo>.png)
+            if getattr(self, "tipo", "biscoito") == "cafe":
+                # caneca de café: corpo marrom, bebo escuro por dentro e fumaça em cima
+                p.setPen(QPen(QColor("#4a3018"), 1.6))
+                p.setBrush(QColor("#8a5a2a"))
+                p.drawRoundedRect(QRectF(c.x() - RADIUS + 3, c.y() - 6, RADIUS * 2 - 6, RADIUS * 1.5)
+                                  , 6, 6)
+                p.setPen(QPen(QColor("#2a1a08"), 1.2))
+                p.setBrush(QColor("#3c2510"))
+                p.drawEllipse(c + QPointF(0, RADIUS * 0.2), RADIUS * 0.62, 4.5)
+                p.setPen(QPen(QColor("#b7a08a"), 1.5))
+                p.setBrush(Qt.NoBrush)
+                p.drawArc(QRectF(c.x() - RADIUS + 4, c.y() - 22, 10, 14), -40 * 16, 80 * 16)
+                p.drawArc(QRectF(c.x() + RADIUS - 14, c.y() - 24, 10, 14), -40 * 16, 80 * 16)
+                p.end()
+                return
+            if self.tipo == "agua":
+                # copo de água: vidro claro com a água azul e um brilho na lateral
+                p.setPen(QPen(QColor("#7fbcd4"), 1.6))
+                p.setBrush(QColor("#d7ecf5"))
+                p.drawRoundedRect(QRectF(c.x() - RADIUS + 4, c.y() - RADIUS + 2,
+                                         RADIUS * 2 - 8, RADIUS * 2 - 6), 5, 5)
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor("#63b8e0"))
+                p.drawRoundedRect(QRectF(c.x() - RADIUS + 6, c.y() - 4,
+                                         RADIUS * 2 - 12, RADIUS - 6), 3, 3)
+                p.setPen(QPen(QColor("#ffffff"), 2.0))
+                p.setBrush(Qt.NoBrush)
+                p.drawLine(c + QPointF(-RADIUS + 9, -RADIUS + 10), c + QPointF(-RADIUS + 9, 2))
+                p.end()
+                return
+            # biscoito de reserva: massa amarela e gotas
+            p.setPen(QPen(QColor("#8a5a1e"), 1.6))
+            p.setBrush(QColor("#e8b45a"))
+            p.drawEllipse(c, RADIUS, RADIUS)
+            p.setPen(QPen(QColor("#5d3a12"), 1))
+            p.setBrush(QColor("#5d3a12"))
+            for xis, yis in ((-4, -3), (3, -1), (-1, 4), (5, 4)):
+                p.drawEllipse(c + QPointF(xis, yis), 2.2, 2.2)
+            p.end()
+            return
+        if self.kind == "presente":
+            # caixinha de reserva: corpo roxo e fita amarela cruzada com um laço
+            p.setPen(QPen(QColor("#4a2a8a"), 1.6))
+            p.setBrush(QColor("#7b4bd0"))
+            p.drawRoundedRect(QRectF(c.x() - RADIUS + 4, c.y() - RADIUS + 10,
+                                     RADIUS * 2 - 8, RADIUS * 2 - 14), 5, 5)
+            p.setPen(QPen(QColor("#c79a1e"), 1.2))
+            p.setBrush(QColor("#ffd24a"))
+            p.drawRect(QRectF(c.x() - 4, c.y() - RADIUS + 10, 8, RADIUS * 2 - 14))
+            p.drawRect(QRectF(c.x() - RADIUS + 4, c.y() - 6, RADIUS * 2 - 8, 8))
+            for lado in (-1, 1):                       # as duas orelhas do laço
+                p.drawEllipse(c + QPointF(lado * 8.0, -RADIUS + 6.0), 6.0, 3.6)
+            p.end()
+            return
         grad = QRadialGradient(c.x() - 5, c.y() - 6, RADIUS * 1.4)
         grad.setColorAt(0.0, QColor("#f4fff6"))
         grad.setColorAt(0.5, QColor("#63e56f"))
