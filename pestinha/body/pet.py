@@ -247,17 +247,48 @@ class PetWindow(QWidget):
         p.restore()
 
     def _desenha_digita(self, p):
-        """As patinhas do tandem de digitação: dois tracinhos sobem e descem, no ritmo das teclas."""
+        """
+        O tandem de digitação, à vista: um mini teclado sob o corpo, teclas que afundam na
+        batida, patinhas com almofada e risquinhos de velocidade a cada pancada (5 batidas/s).
+        """
         agora = time.monotonic()
         cor = QColor(self.aparencia.olho)
+        teclado_topo = BODY_H / 2 + 3.0
+        batidas, alturas = 5.0, 7.0
         p.save()
-        p.setPen(QPen(cor, 2.4, Qt.SolidLine, Qt.RoundCap))
+        # tábua do teclado, no estilo do fone (casca escura com contorno da cor do pet)
+        p.setPen(QPen(cor.darker(150), 2.0))
+        p.setBrush(QColor("#2b2b2b"))
+        p.drawRoundedRect(QRectF(-BODY_W * 0.62, teclado_topo, BODY_W * 1.24, 13.0), 4, 4)
+        # teclas: a tecla da pancada "afunda" (mais escura e mais baixa)
+        p.setPen(QPen(cor.darker(170), 1.0))
+        for k in range(5):
+            lado_da_tecla = -1 if k < 2 else 1       # teclas 0..1: pata esquerda; 3..4: direita
+            fase = (agora * batidas + (0.0 if lado_da_tecla < 0 else 0.5)) % 1.0
+            afundada = fase < 0.35 and k in (1, 3)   # só a tecla sob cada pata afunda
+            tecla_y = teclado_topo + 2.0 + (1.5 if afundada else 0.0)
+            p.setBrush(QColor("#3d3d3d") if afundada else QColor("#4a4a4a"))
+            p.drawRoundedRect(QRectF(-BODY_W * 0.50 + k * BODY_W * 0.22, tecla_y,
+                                     BODY_W * 0.18, 5.0), 2, 2)
+        # patinhas: almofada de coração... de patinha, subindo e descendo na batida
         for lado in (-1, 1):
-            fase = (agora * 3.0 + (0.5 if lado < 0 else 0.0)) % 1.0
-            subida = abs(math.sin(fase * math.pi)) * 6.0
-            x = lado * 8.0
-            y = BODY_H / 2 - 1.0 + subida
-            p.drawLine(QPointF(x, y), QPointF(x, y - 5.0))
+            fase = (agora * batidas + (0.0 if lado < 0 else 0.5)) % 1.0
+            x = lado * (BODY_W * 0.30)
+            y = teclado_topo - 3.0 - abs(math.sin(fase * math.pi)) * alturas
+            p.setPen(QPen(cor.darker(150), 1.2))
+            p.setBrush(cor)
+            p.drawEllipse(QPointF(x, y), 5.0, 3.5)
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor("#f1ecd9"))
+            for dx in (-2.0, 0.0, 2.0):              # dedinhos de cima
+                p.drawEllipse(QPointF(x + dx, y - 2.6), 1.4, 1.4)
+            # risquinhos de velocidade na descida (a pata batendo rápido)
+            if 0.25 <= fase < 0.6:
+                p.setPen(QPen(cor, 1.4))
+                p.setOpacity(1.0 - (fase - 0.25) / 0.35)
+                for dx in (-8.0, -11.0) if lado > 0 else (8.0, 11.0):
+                    p.drawLine(QPointF(x + dx, y - 2.0), QPointF(x + dx * 1.6, y - 2.0))
+                p.setOpacity(1.0)
         p.restore()
 
     def _desenha_beijo(self, p, st):
