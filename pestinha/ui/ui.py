@@ -4,6 +4,10 @@ UI - tela inicial de permissões, ícone na bandeja e atalho de pânico.
 
 from .. import plataforma
 
+import os
+import sys
+import tempfile
+
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
@@ -111,6 +115,8 @@ class SettingsDialog(QDialog):
         hint.setObjectName("hint")
         hint.setWordWrap(True)
         root.addWidget(hint)
+        if sys.platform.startswith("linux"):
+            self._avisos_de_sessao(root)
 
         top = QGroupBox(config.APP_NOME)
         top_layout = QVBoxLayout(top)
@@ -174,9 +180,18 @@ class SettingsDialog(QDialog):
                 self._update_history_label()
             root.addWidget(group)
 
+        self._grupo_sistema(root)
+
         panic = QLabel(f"Pânico (desliga tudo e fica desligado): {config.PANIC_HOTKEY_TEXT}")
         panic.setObjectName("hint")
         root.addWidget(panic)
+        if sys.platform.startswith("linux"):
+            sinal = QLabel(
+                "Atalho que não depende de ler o teclado (e funciona em Wayland): configure um atalho do "
+                "seu ambiente para `pkill -USR1 -f 'python .*main.py'` (no executável, `pkill -USR1 -x Pestinha`).")
+            sinal.setObjectName("hint")
+            sinal.setWordWrap(True)
+            root.addWidget(sinal)
 
         buttons = QHBoxLayout()
         buttons.addStretch(1)
@@ -268,6 +283,85 @@ class SettingsDialog(QDialog):
         for key in ("memes", "fotos", "bilhetes"):
             self.boxes[key].setEnabled(master)
         self.boxes["mostrar_emocao"].setEnabled(self.perms["modo_teste"])
+
+    # ---------------- integração com o sistema (Linux) ----------------
+
+    def _avisos_de_sessao(self, root):
+        """O que a sessão atual não deixa o pet fazer (Wayland, ferramentas X11 que faltam)."""
+        for aviso in plataforma.avisos_sessao():
+            label = QLabel(aviso)
+            label.setObjectName("hint")
+            label.setWordWrap(True)
+            root.addWidget(label)
+
+    def _grupo_sistema(self, root):
+        """Integração de desktop por arquivos XDG: o arquivo é o estado, nada escondido."""
+        from ..plataforma import desktop_linux
+        self._desktop = desktop_linux
+        grupo = QGroupBox("Sistema")
+        layout = QVBoxLayout(grupo)
+        autostart = QCheckBox("Abrir junto com o sistema")
+        autostart.setChecked(desktop_linux.autostart_ativo())
+        autostart.toggled.connect(self._definir_autostart)
+        layout.addWidget(autostart)
+        self.autostart_box = autostart
+        dica = QLabel(f"Marcação escreve {desktop_linux.arquivo_autostart()} (padrão XDG, apagável à mão).")
+        dica.setObjectName("hint")
+        dica.setWordWrap(True)
+        dica.setContentsMargins(26, 0, 0, 4)
+        layout.addWidget(dica)
+        self.menu_botao = QPushButton()
+        self.menu_botao.clicked.connect(self._trocar_menu)
+        layout.addWidget(self.menu_botao)
+        self._atualizar_botao_menu()
+        dica_menu = QLabel(f"Menu de aplicativos: {desktop_linux.arquivo_menu()}.")
+        dica_menu.setObjectName("hint")
+        dica_menu.setWordWrap(True)
+        dica_menu.setContentsMargins(26, 0, 0, 4)
+        layout.addWidget(dica_menu)
+        root.addWidget(grupo)
+
+    def _definir_autostart(self, on):
+        """Marcação grava ou apaga o arquivo de autostart; erro volta a caixa ao estado real."""
+        if self._desktop.definir_autostart(on) == on:
+            return
+        self.autostart_box.blockSignals(True)
+        self.autostart_box.setChecked(self._desktop.autostart_ativo())
+        self.autostart_box.blockSignals(False)
+        QMessageBox.warning(self, config.APP_NOME, "Não deu para gravar o arquivo de autostart.")
+
+    def _trocar_menu(self):
+        """Instala (ou remove) o .desktop do menu de aplicativos, com o ícone do rosto."""
+        on = not self._desktop.menu_instalado()
+        self._garantir_icone()
+        if on and not self._desktop.definir_menu(True):
+            QMessageBox.warning(self, config.APP_NOME, "Não deu para gravar o arquivo do menu.")
+            return
+        if not on:
+            self._desktop.definir_menu(False)
+        self._atualizar_botao_menu()
+
+    def _atualizar_botao_menu(self):
+        """O texto do botão diz o que ele vai fazer com o arquivo do menu."""
+        if hasattr(self, "menu_botao"):
+            self.menu_botao.setText(
+                "Remover do menu de aplicativos" if self._desktop.menu_instalado()
+                else "Adicionar ao menu de aplicativos")
+
+    def _garantir_icone(self):
+        """O ícone vem do repo (o mesmo da entrega); sem ele, o rosto é renderizado na hora."""
+        if self._desktop.caminho_do_icone().exists():
+            return
+        if self._desktop.icone_instalado() and self._desktop.instalar_icone(self._desktop.ICONE_REPO):
+            return
+        pixmap = self.windowIcon().pixmap(256, 256)
+        if pixmap.isNull():
+            return
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            temporario = tmp.name
+        pixmap.save(temporario)
+        self._desktop.instalar_icone(temporario)
+        os.unlink(temporario)
 
     def set_active(self, on):
         """Atualiza a caixa 'ligado' sem disparar a gravação (usado pelo pânico)."""

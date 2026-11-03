@@ -13,7 +13,7 @@ import argparse
 import shutil
 import sys
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from pestinha import config
@@ -43,6 +43,12 @@ def main():
     app.setWindowIcon(face_icon())
 
     paths = Paths()
+    paths.memory.mkdir(parents=True, exist_ok=True)      # o QLockFile precisa que a pasta exista
+    trava = QLockFile(str(paths.memory / "pestinha.lock"))
+    if not trava.tryLock(0):         # trava morta (processo que caiu) é descartada pelo QLockFile
+        QMessageBox.information(None, config.APP_NOME,
+                                f"O {config.APP_NOME} já está rodando: procure o pet ou o ícone na bandeja.")
+        return 0
     store = SettingsStore(paths)
     perms = store.perms
     if not args.direto:

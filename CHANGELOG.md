@@ -1,5 +1,26 @@
 # Histórico de versões
 
+## Integração com o Linux
+
+- A tela de Configurações ganha um bloco **Sistema** (só no Linux): "Abrir junto com o sistema"
+  escreve/apaga `~/.config/autostart/pestinha.desktop`, e "Aparecer no menu de aplicativos" escreve
+  `~/.local/share/applications/pestinha.desktop` com o ícone do pet em `~/.local/share/icons/hicolor/`.
+  O arquivo é o próprio estado (presente = ligado) e respeita `$XDG_CONFIG_HOME` e `$XDG_DATA_HOME`.
+  Código em `pestinha/plataforma/desktop_linux.py`.
+- O pânico ganha uma segunda via por sinal do sistema (POSIX): um `pkill -USR1` no processo faz o
+  pânico sem ler o teclado, e pode ser usado como atalho do próprio ambiente — funciona até em Wayland,
+  onde a via por teclado (pynput) não existe. A conversão do sinal fica em `plataforma/_comum.py`, e o
+  app vigia o canal com um QSocketNotifier na thread do Qt.
+- O tipo de sessão (`x11`, `wayland`, `tty`) é detectado e as limitações dela são avisadas uma vez,
+  na abertura e nas Configurações; falta de `xdotool`/`wmctrl`/`xprintidle` também.
+- Abrir o programa uma segunda vez (do código ou do executável) não cria um segundo pet: uma trava
+  (QLockFile em `memory/pestinha.lock`) faz a segunda cópia avisar e sair.
+- O monitor neural e o painel de protesto ganham um botão ✕ no canto, para fechar sem passar pelo menu
+  (notebook e placa do castigo continuam sem: a existência deles é a mecânica).
+- O pet sobe a janela de vez em quando sem ativá-la (X11): com várias janelas de outros programas
+  abertas, continua por cima das duas telas sem roubar o foco. [Em Wayland o compositor não permite,
+  e o pet se comporta como uma janela comum.]
+
 ## Suporte a macOS e Linux
 
 - Toda a leitura do sistema (programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho

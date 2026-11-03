@@ -23,15 +23,17 @@ Quem faz o quê:
 """
 
 import math
+import os
 import time
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QSocketNotifier, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QSystemTrayIcon
 
 from . import config
 from . import log as log_module
 from . import migracao
+from . import plataforma
 from .ajustes import (
     ATIVIDADE_MINIMA_VOO as REFLEX_MIN_HZ,
     BATIDA_FORTE as HARD_IMPACT,
@@ -199,6 +201,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tray.quit.connect(self.quit)
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
+        self._ligar_panic_sinal()
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
         self.paused = False
         self._pausado_em = None         # quando a pausa começou (para descontar do tempo dos episódios)
@@ -223,6 +226,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             problems.append(self.aviso_migracao)
         if not self.hotkey.ok:
             problems.append(f"atalho de pânico {config.PANIC_HOTKEY_TEXT} já está em uso por outro programa")
+        avisos = plataforma.avisos_sessao()
+        for aviso in avisos:
+            log(f"[sessão] {aviso}")
+        problems.extend(avisos)
+        log(f"[sessão] plataforma do Qt: {QGuiApplication.platformName()} "
+            f"(sistema: {plataforma.NOME_DO_SISTEMA})")
         if problems:
             self.tray.icon.showMessage(config.APP_NOME,"\n".join(problems), QSystemTrayIcon.Warning, 6000)
         if self.perms["ativo"]:
@@ -237,6 +246,28 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         timer.timeout.connect(slot)
         timer.start(ms)
         return timer
+
+    def _ligar_panic_sinal(self):
+        """
+        Segunda via do atalho de pânico: um sinal no processo (POSIX, funciona até em Wayland).
+        O canal do sistema devolve um fd; o QSocketNotifier vigia o fd na thread do Qt e cada byte
+        lido vira um pânico.
+        """
+        fd = plataforma.canal_panic_sinal()
+        if fd is None:
+            return
+        notify = QSocketNotifier(fd, QSocketNotifier.Type.Read, self)
+        notify.activated.connect(self._panic_pelo_sinal)
+        self._panic_sinal_fd = fd
+
+    def _panic_pelo_sinal(self):
+        """Um byte chegou pelo canal do sinal: drena o pipe e faz o pânico."""
+        try:
+            while os.read(self._panic_sinal_fd, 4096):
+                pass
+        except OSError:
+            pass
+        self.panic()
 
     @property
     def asleep(self):

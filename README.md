@@ -54,8 +54,13 @@ fica salvo localmente e muda o jeito dele com o tempo.
 - Windows 10 ou 11, macOS (Quartz/pyobjc) ou Linux com X11.
 - Python 3.11 ou mais novo.
 - No Linux, para as janelas e o tempo ocioso: `xdotool`, `wmctrl` e `xprintidle`. Sem eles, o pet continua
-  andando, mas não enxerga as janelas.
+  andando, mas não enxerga as janelas (a tela de Configurações avisa o que a sua sessão permite).
 - Cerca de 70 MB de RAM com ele rodando.
+
+No Linux, a tela de Configurações tem um bloco **Sistema**: "Abrir junto com o sistema" (autostart) e
+"Aparecer no menu de aplicativos". Nada de serviço escondido — nos dois casos é apenas um arquivo
+padrão XDG no seu usuário (`~/.config/autostart/` e `~/.local/share/applications/`), visível e
+apagável à mão. Abrir o programa duas vezes não gera dois pets: a segunda cópia avisa e sai.
 
 ## Instalação e uso
 
@@ -87,6 +92,14 @@ python main.py --direto
 
 `Ctrl + Alt + Shift + B` desliga tudo na hora, e ele continua desligado até você religar em
 Configurações.
+
+No Linux há uma segunda via, que não depende de ler o teclado e funciona até em Wayland: configure
+um atalho no seu ambiente (GNOME, KDE...) para o comando abaixo e cada acionamento vira um pânico.
+
+```bash
+pkill -USR1 -f 'python .*main.py'     # rodando do código
+pkill -USR1 -x Pestinha               # no executável gerado pelo PyInstaller
+```
 
 ### Modo teste
 
@@ -208,7 +221,8 @@ As imagens e os textos de `assets/` não estão cobertos por esta licença
 - macOS e Linux ainda não foram testados numa máquina real: a parte de leitura das janelas e do teclado foi
   escrita e testada só nas partes de texto (ver `tests/test_plataforma.py`).
 - No macOS, o pet precisa da permissão de Acessibilidade para o atalho Ctrl+Alt+Shift+B funcionar.
-- No Linux com Wayland, o pet não enxerga janelas nem o tempo ocioso, e o atalho global não funciona.
+- No Linux com Wayland, o pet não enxerga janelas nem o tempo ocioso (avisado nas Configurações), e o
+  atalho Ctrl+Alt+Shift+B não funciona; a via de pânico por sinal (`pkill -USR1 ...`) cobre isso.
 - Pouco testado com escala de tela acima de 100% e com vários monitores.
 - Jogos em janela sem borda podem não ser detectados como tela cheia.
 - O executável não é assinado; o Windows pode avisar na primeira execução.

@@ -7,12 +7,42 @@ a leitura correspondente vira o valor padrão.
 """
 
 import os
+import shutil
 
 import psutil
 
 from ._comum import atalho_pynput, rodar
 
 LARGURA_MINIMA, ALTURA_MINIMA = 120, 60
+FERRAMENTAS = ("xdotool", "wmctrl", "xprintidle")
+
+_ferramentas_faltando = None
+
+
+def ferramentas_faltando():
+    """Quais das três ferramentas X11 não estão instaladas (verificado uma vez, na primeira leitura)."""
+    global _ferramentas_faltando
+    if _ferramentas_faltando is None:
+        _ferramentas_faltando = [c for c in FERRAMENTAS if shutil.which(c) is None]
+    return _ferramentas_faltando
+
+
+def modo_sessao():
+    """'x11', 'wayland', 'tty' ou 'desconhecido': o tipo de sessão gráfica em que estamos."""
+    if os.environ.get("WAYLAND_DISPLAY"):
+        return "wayland"
+    return (os.environ.get("XDG_SESSION_TYPE") or "").lower() or "desconhecido"
+
+
+def avisos_sessao():
+    """Limitações conhecidas da sessão atual, para o app avisar o usuário uma vez."""
+    if modo_sessao() == "wayland":
+        return ["Você está em Wayland: o pet não enxerga as janelas nem o tempo ocioso, e o atalho de "
+                "pânico pelo teclado não funciona (uma alternativa está no README)."]
+    faltando = ferramentas_faltando()
+    if faltando:
+        return ["Sem " + ", ".join(faltando) + ": o pet não enxerga as janelas nem mede o tempo ocioso."]
+    return []
 
 
 def parse_geometria(texto):

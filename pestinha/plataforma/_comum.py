@@ -1,5 +1,7 @@
 """Partes que os três sistemas compartilham: rodar comandos do sistema e o atalho global via pynput."""
 
+import os
+import signal
 import subprocess
 
 from ..log import log
@@ -29,3 +31,29 @@ def atalho_pynput(callback):
         log(f"[pânico] não deu para registrar o atalho: {error}")
         return False
     return True
+
+
+def canal_panic_sinal(sinal=signal.SIGUSR1, _pipe=None):
+    """
+    POSIX: um canal para o atalho de pânico que não depende de ler o teclado (funciona em Wayland).
+    O atalho do ambiente do usuário roda `pkill -USR1 <nome do programa>`; o sistema entrega o sinal,
+    este handler escreve um byte num pipe e o app (QSocketNotifier, na thread do Qt) faz o pânico.
+    Devolve o descritor de leitura, ou None se o sistema não tem SIGUSR1.
+    """
+    if not hasattr(signal, "SIGUSR1"):
+        return None
+    leitura, escrita = _pipe if _pipe else os.pipe()
+    os.set_blocking(leitura, False)
+    os.set_blocking(escrita, False)
+
+    def _pelo_sinal(_sinal, _quadro):
+        try:
+            os.write(escrita, b"1")
+        except OSError:
+            pass                # o pipe cheio significa só que há mais de um pânico na fila
+
+    try:
+        signal.signal(sinal, _pelo_sinal)
+    except (OSError, ValueError):
+        return None
+    return leitura
