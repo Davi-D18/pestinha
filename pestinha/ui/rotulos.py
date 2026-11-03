@@ -36,6 +36,8 @@ CANAIS_SENSORIAIS = {
     "VISITA": "visita no canto",
     "RECEIO": "receio de fugir",
     "RANCOR": "rancor",
+    "HEAT": "carga da máquina",
+    "FOOD": "comida",
 }
 
 INTERNEURONIOS = {

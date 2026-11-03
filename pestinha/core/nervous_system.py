@@ -84,6 +84,8 @@ SENSORY_SPEC = {
     "VISITA":  (6,  60.0, 0.0,        1.0),   # você está perto dele enquanto ele está preso
     "RECEIO":  (6,  40.0, 0.0,        1.0),   # interno: fugas que deram errado (devolvido ao canto)
     "RANCOR":  (6,  40.0, 0.0,        1.0),   # interno: tempo de castigo acumulado, decai devagar
+    "HEAT":    (6,  30.0, 0.00008,  900.0),   # a máquina está pesada (carga do sistema; habitua devagar)
+    "FOOD":    (6,  40.0, 0.0,        1.0),   # comida por perto (não habitua: fome sempre interessa)
 }
 
 # ============================================================
@@ -194,6 +196,10 @@ CONNECTIONS = [
     ("IMPACT",  "GLOOM",   0.02, 0.6),
     ("BOREDOM", "CURIOUS", 0.12, 0.6),
     ("BOREDOM", "PLAYFUL", 0.09, 0.6),
+    ("HEAT",    "TIRED",   0.07, 0.6),        # máquina pesada: ele fica com sono-relento
+    ("HEAT",    "QUIET",   0.04, 0.6),        # ...e mais quietinho
+    ("FOOD",    "CURIOUS", 0.09, 0.6),        # comida por perto: chega perto, se interessa
+    ("FOOD",    "PLAYFUL", 0.05, 0.6),
 
     # interneurônios entre si
     ("TIRED",   "GLOOM",   0.03, 0.5),

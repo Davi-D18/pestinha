@@ -18,7 +18,7 @@ escolhe o certo na importação. Os retângulos são em pixels físicos (o app d
 
 import sys
 
-from ._comum import canal_panic_sinal      # noqa: F401  (POSIX: None onde não há SIGUSR1)
+from ._comum import carga_sistema, canal_panic_sinal   # noqa: F401  (ver docstring)
 
 if sys.platform == "win32":
     from . import windows as _backend
@@ -42,5 +42,5 @@ modo_sessao = getattr(_backend, "modo_sessao", None)
 avisos_sessao = getattr(_backend, "avisos_sessao", lambda: [])
 
 __all__ = ["NOME_DO_SISTEMA", "ocioso_segundos", "processo_ativo", "retangulo_ativo", "tela_cheia",
-           "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho", "canal_panic_sinal",
+           "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho", "canal_panic_sinal", "carga_sistema",
            "modo_sessao", "avisos_sessao"]

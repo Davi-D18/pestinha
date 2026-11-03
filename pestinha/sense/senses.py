@@ -1,7 +1,8 @@
 """
 SENSES - o computador como mundo sensorial.
 
-Só olha: janela ativa, processo, tempo ocioso, tela cheia e o RETÂNGULO das janelas (para ele pousar).
+Só olha: janela ativa, processo, tempo ocioso, tela cheia, o RETÂNGULO das janelas (para ele pousar)
+e se há música tocando (MPRIS no D-Bus da sessão: só o estado do player, nunca conteúdo).
 Como o sistema é lido fica em plataforma/; aqui fica só o que isso significa. Nunca lê conteúdo de janela.
 """
 
@@ -10,6 +11,14 @@ import time
 
 from .. import plataforma
 from ..mathutil import clamp
+
+# QtDBus pode faltar em instalações enxutas do PySide6: sem ele, MPRIS devolve False sempre.
+try:
+    from PySide6.QtDBus import QDBusMessage as _QDBusMessage
+    MessageType = _QDBusMessage.MessageType
+except Exception:                                    # pragma: no cover - só em ambientes sem QtDBus
+    _QDBusMessage = None
+    MessageType = None
 
 # Nomes sem ".exe" e em minúsculo: vale para Windows, macOS e Linux (ver detect_activity)
 ACTIVITY_APPS = {
@@ -20,8 +29,13 @@ ACTIVITY_APPS = {
     "BROWSING": {"chrome", "google chrome", "chromium", "firefox", "msedge", "microsoft edge", "opera",
                  "brave", "brave browser", "safari"},
     "SOCIAL": {"discord", "teams", "microsoft teams", "whatsapp"},
-    "MUSIC": {"spotify"},
+    "MUSIC": {"spotify", "apple music", "youtube music", "tidal", "deezer"},
 }
+
+# Jogadores de áudio: também valem MÚSICA quando o nome contém a palavra (qualquer player).
+MUSIC_PALAVRAS = ("spotify", "music", "mpd", "vlc", "rhythmbox", "cmus", "audacious", "deadbeef",
+                  "strawberry", "quodlibet", "exaile", "foobar", "winamp", "tidal", "deezer",
+                  "podcast", "radio", "gpodder", "mpv")
 
 # Qual canal sensorial cada atividade estimula
 ACTIVITY_CHANNEL = {
@@ -62,12 +76,90 @@ def detect_activity(app, idle_seconds, away_after):
     for activity, apps in ACTIVITY_APPS.items():
         if nome in apps:
             return activity
+    if any(p in nome for p in MUSIC_PALAVRAS):     # player de qualquer família toca música
+        return "MUSIC"
     return "IDLE"
 
 
 def is_fullscreen():
     """Diz se a janela em primeiro plano ocupa a tela inteira (o pet não aparece nesse caso)."""
     return plataforma.tela_cheia()
+
+
+# ============================================================
+# MÚSICA PELO MPRIS (D-Bus da sessão)
+# ============================================================
+# O desktop público expõe o que está tocando em org.mpris.MediaPlayer2.*:
+# rola pelo Chrome (Media Session), Firefox, VLC... Lê-se SÓ o PlaybackStatus
+# do player ("Playing" ou não) — nenhum título, nada de conteúdo.
+
+
+_mpris_nomes = {"nomes": [], "quando": 0.0}
+
+
+from PySide6.QtDBus import QDBusMessage    # ver abaixo: enum de tipo de mensagem
+
+MessageType = QDBusMessage.MessageType
+
+
+def _mpris_pergunta(servico, caminho, interface, metodo, argumentos=()):
+    """Uma chamada D-Bus de leitura (sem erro se o outro lado sumir)."""
+    if _QDBusMessage is None:
+        return None
+    mensagem = _QDBusMessage.createMethodCall(servico, caminho, interface, metodo)
+    if argumentos:
+        mensagem.setArguments(list(argumentos))
+    return mensagem
+
+
+def _resposta_ok(mensagem):
+    """True quando o D-Bus devolveu uma resposta normal (ReplyMessage), não erro."""
+    return (mensagem is not None and MessageType is not None
+            and mensagem.type() == MessageType.ReplyMessage)
+
+
+def _mpris_players(conexao):
+    """Serviços MPRIS ativos (org.mpris.MediaPlayer2.*), com lista cacheada por 10 s."""
+    if time.monotonic() - _mpris_nomes["quando"] >= 10.0:
+        pergunta = _mpris_pergunta("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                   "org.freedesktop.DBus", "ListNames")
+        if pergunta is None:
+            _mpris_nomes["quando"] = time.monotonic()
+            return []
+        resposta = conexao.call(pergunta)
+        nomes = resposta.arguments()[0] if _resposta_ok(resposta) else []
+        _mpris_nomes["nomes"] = [n for n in nomes if str(n).startswith("org.mpris.MediaPlayer2.")]
+        _mpris_nomes["quando"] = time.monotonic()
+    return _mpris_nomes["nomes"]
+
+
+def musica_tocando():
+    """
+    True se algum player MPRIS da sessão está com PlaybackStatus "Playing".
+    Sem D-Bus (ou sem PySide6.QtDBus), devolve False e não atrapalha nada.
+    """
+    try:
+        from PySide6.QtDBus import QDBusConnection
+        conexao = QDBusConnection.sessionBus()
+    except Exception:
+        return False
+    if conexao is None or not conexao.isConnected():
+        return False
+    for servico in _mpris_players(conexao):
+        pergunta = _mpris_pergunta(str(servico), "/org/mpris/MediaPlayer2",
+                                   "org.freedesktop.DBus.Properties", "Get",
+                                   ("org.mpris.MediaPlayer2.Player", "PlaybackStatus"))
+        resposta = conexao.call(pergunta)
+        if _resposta_ok(resposta):
+            valor = resposta.arguments()
+            if valor:
+                # Get devolve o valor embrulhado em QDBusVariant: desembrulhe antes de comparar
+                bruto = valor[0]
+                if hasattr(bruto, "variant"):
+                    bruto = bruto.variant()
+                if str(bruto) == "Playing":
+                    return True
+    return False
 
 
 def list_windows(exclude, escala=1.0):

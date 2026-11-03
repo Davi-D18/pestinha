@@ -3,6 +3,9 @@
 import os
 import signal
 import subprocess
+import time
+
+import psutil
 
 from ..log import log
 
@@ -14,6 +17,41 @@ def rodar(comando, tempo=1.0):
     except (OSError, subprocess.SubprocessError):
         return None
     return resultado.stdout if resultado.returncode == 0 else None
+
+
+_primeira_carga = [True]
+_ultima_carga = [0.0, 0.0]      # (quando, percentual)
+
+
+def carga_sistema():
+    """
+    0..1: quão pesada está a máquina agora (CPU daqui, nada do usuário nem de janelas).
+    A primeira chamada só prepara a leitura do psutil; a partir daí são leituras de ~1 s.
+    """
+    if _primeira_carga[0]:
+        _primeira_carga[0] = False
+        try:
+            psutil.cpu_percent(interval=None)
+        except Exception:
+            return 0.0
+        return 0.0
+    quando, _percento = _ultima_carga
+    if time.monotonic() - quando < 0.9:      # leitura tem ~1 s de janela; reaproveita
+        return clamp_carga(_percento)
+    try:
+        percentual = psutil.cpu_percent(interval=None)
+    except Exception:
+        return 0.0
+    _ultima_carga[0] = time.monotonic()
+    _ultima_carga[1] = percentual
+    return clamp_carga(percentual)
+
+
+def clamp_carga(percentual):
+    """Percentual de CPU vira 0..1: pesada a partir de 70%."""
+    if not isinstance(percentual, (int, float)) or percentual != percentual:
+        return 0.0
+    return max(0.0, min(1.0, (percentual - 70.0) / 25.0))
 
 
 def atalho_pynput(callback):
