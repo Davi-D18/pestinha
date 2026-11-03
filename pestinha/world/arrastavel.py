@@ -10,7 +10,7 @@ memory/panels.json (ver paths.py).
 from ..log import log
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QPushButton, QWidget
 
 from ..body.pet import set_no_activate
 from ..mathutil import valor_real
@@ -53,7 +53,7 @@ def posicao_acessivel(salva, padrao, tamanho):
 
 class FloatingWidget(QWidget):
     """Janela de painel que você pode arrastar, sempre por cima, sem roubar o foco."""
-    def __init__(self, app, key, title, size, minimum, default_pos):
+    def __init__(self, app, key, title, size, minimum, default_pos, fechavel=False):
         """Cria o painel com título, tamanho (e tamanho mínimo) e a posição salva (ou a padrão)."""
         super().__init__(None, Qt.FramelessWindowHint | Qt.Tool
                          | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus)
@@ -63,8 +63,37 @@ class FloatingWidget(QWidget):
         self.resize(*size)
         self.setMinimumSize(*minimum)
         self._grab = None
+        self._botao_fechar = None
+        if fechavel:
+            self._botao_fechar = self._botao_de_fechar()
         saved = load_positions(app.paths.panels).get(key)
         self.move(*posicao_acessivel(saved, default_pos, size))
+
+    def _botao_de_fechar(self):
+        """Botão sem moldura no canto superior direito (as janelas não têm barra de título)."""
+        botao = QPushButton("✕", self)
+        botao.setToolTip("Fechar")
+        botao.setFixedSize(22, 22)
+        botao.setStyleSheet("QPushButton { color: #7f9886; background: transparent; border: none;"
+                            " font-size: 14px; font-weight: bold; }"
+                            "QPushButton:hover { color: #e0474c; background: #1a241d;"
+                            " border-radius: 4px; }")
+        botao.clicked.connect(self._fechar)
+        return botao
+
+    def _fechar(self):
+        """Fecha o painel: a mesma via do menu da bandeja, para o app registrar que você fechou."""
+        fechar = getattr(self.app, "floats", None)
+        if fechar is not None:
+            fechar.close(self.key)
+        else:
+            self.hide()
+
+    def resizeEvent(self, event):
+        """Mantém o botão de fechar no canto superior direito em qualquer tamanho."""
+        super().resizeEvent(event)
+        if self._botao_fechar is not None:
+            self._botao_fechar.move(self.width() - 26, 6)
 
     def showEvent(self, event):
         """Ao aparecer, não rouba o foco do programa que você está usando."""

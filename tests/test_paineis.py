@@ -45,3 +45,21 @@ def test_esconder_o_bryan_esconde_o_painel(pet_app):
     pet_app.floats.open("greve")
     pet_app.floats.sync(False, False)
     assert not pet_app.floats.window("greve").isVisible()
+
+
+def test_botao_de_fechar_esconde_o_painel(pet_app):
+    """O ✕ no canto do painel fecha pela mesma via do menu (o painel sai da lista de abertos)."""
+    painel = pet_app.floats.open("greve") or pet_app.floats.window("greve")
+    painel.show()
+    assert painel.isVisible()
+    assert painel._botao_fechar is not None
+    painel._botao_fechar.click()
+    assert not painel.isVisible()
+    assert "greve" not in pet_app.floats.opened          # fechar esquece, como o menu da bandeja
+
+
+def test_painel_sem_botao_quando_a_mecanica_nao_pode_fechar(pet_app):
+    """Notebook e placa do castigo não são fecháveis: a existência deles é a mecânica."""
+    assert pet_app.mesa.caderno._botao_fechar is None
+    placa = getattr(pet_app.castigo, "plaquinha", None)      # só existe depois de ir ao canto
+    assert placa is None or placa._botao_fechar is None

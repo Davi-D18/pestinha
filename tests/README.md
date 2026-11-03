@@ -34,6 +34,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_escolha_pet.py` | Etapa 3 do multipet: escolha do personagem nas configurações e o nome certo em cada texto. |
 | `test_festa.py` | Fogos de artifício ligados à rede e brincadeira mais animada quando feliz. |
 | `test_homeostase.py` | Homeostase: trabalhar é estímulo, então o tédio não sobe enquanto ele programa. |
+| `test_integracao_linux.py` | Integração Linux: sessão (Wayland/X11, ferramentas), o canal de pânico por sinal e a integração de desktop por arquivos XDG (tudo em pastas temporárias, nada encosta na sua home). |
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |

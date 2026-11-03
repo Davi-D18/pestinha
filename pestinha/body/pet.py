@@ -106,8 +106,19 @@ class PetWindow(QWidget):
         """Ao aparecer, a janela já é marcada para não roubar o foco do programa que você está usando."""
         super().showEvent(event)
         set_no_activate(self)
+        self._ultimo_subir = time.monotonic()
 
     # ---------------- animação ----------------
+
+    def ajusta_frente(self, now):
+        """
+        Sobe a janela de vez em quando (a cada ~2 s) sem ativá-la: com várias janelas de outros
+        programas na tela, o pet continua por cima de todas. O no-activate é quem impede que
+        isso roube o foco; no Wayland o compositor não deixa, e o pet acaba coberto normalmente.
+        """
+        if now - getattr(self, "_ultimo_subir", now) >= 2.0:
+            self.raise_()
+            self._ultimo_subir = now
 
     def animate(self, now):
         """Um quadro da animação: suaviza a forma dos olhos, pisca de tempos em tempos e reposiciona a janela."""
@@ -128,6 +139,7 @@ class PetWindow(QWidget):
             self.body.angle += (self._held_angle + sway - self.body.angle) * 0.25
 
         self.move(int(self.body.x - CX), int(self.body.y - CY))
+        self.ajusta_frente(now)
         self.update()
 
     def paintEvent(self, _event):
