@@ -10,7 +10,9 @@ Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos e a jan
 |---|---|
 | `arrastavel.py` | Janela arrastável que flutua sobre a área de trabalho (painéis, notebook, placa). |
 | `cartazes.py` | Os cartazes e a bandeira que o pet levanta. |
+| `comida.py` | Biscoito, café ou água: você oferece pelo menu ("Oferecer biscoito", "Servir o café", "Água fresca"), e ele sente, chega e toma. |
 | `fireworks.py` | O fogo de artifício do bichinho feliz. |
 | `mischief.py` | Memes, fotos e bilhetes que o pet espalha pela tela. |
 | `notebook.py` | O notebook do pet (só o desenho e o arrastar). |
 | `objetos.py` | Os post-its, memes e fotos que o pet traz, como janelas na tela. |
+| `presente.py` | A caixinha-surpresa: você dá pelo menu ("Dar um presente"), ele chega e abre. |

@@ -1,5 +1,41 @@
 # Histórico de versões
 
+## Momentos (interações que você dá a ele)
+
+- **Comida e bebida** ("Oferecer biscoito" / "Servir o café" / "Água fresca" no menu): mesmo
+  objeto, três tipos com reação própria — biscoito vira energia; café vira mais energia e uns
+  segundos de pulinhos nervosos (cafeína); água quase não enche mas assenta (tira a tontura e
+  deixa contente). Sprites opcionais: `assets/comum/biscoito.png`, `cafe.png`, `agua.png`.
+- **Presente** ("Dar um presente"): uma caixinha-surpresa no chão; ele anda até ela, abre e a
+  surpresa é sorteada — festa com pulinho e recompensa, um bilhete engraçado, ou uma pedra
+  (cara triste por um pouco). Pipeline de travessura reutilizado para o bilhete.
+- **Balanço**: pegue o pet e chacoalhe de lado a lado — três trocas de lado numa janela curta
+  e ele gargalha, fica meio tonto 1 s e recebe uma recompensa pequena (reflexo do arraste).
+- **Beijo**: dois cliques rápidos no rosto — um coraçãozinho sobe da cabeça; o primeiro do dia
+  vale recompensa grande e fica registrado em `memory/beijos.json` (os outros beijos são só afeto).
+- **Tacinho** ("Tacinho (fica quietinho 1 h)" no menu): ele vai para o canto, senta e só pisca;
+  sem travessuras nem passeios por 1 h (o item vira "Pode voltar a conversar").
+- **Tandem de digitação**: digite por mais de 30 s seguidos e ele fica paradinho, "digitando
+  junto" (patinhas no ritmo das teclas); de vez em quando cola um bilhete engraçado.
+- A troca de monitor ficou definitiva: o chão da tela de destino é sólido (pulinhos, dança e
+  malhação não derrubam mais o pet de volta pela emenda entre telas empilhadas).
+
+## Dinâmica nova (alimentado pelos sentidos que já existiam)
+
+- **Carga da máquina** (canal HEAT): quando o computador está pesado (CPU alta, nada do usuário é lido),
+  ele entrou na rede como canal; com máquina pesada ele fica com sono-relento e mais quietinho.
+- **Comida**: um biscoito que você oferece pelo menu do pet ("Pôr comida para ele"); ele anda até ele
+  (canal FOOD), come, recupera energia, aprende que comida é bom (recompensa) e fica feliz com olhos
+  fechados. Sprite em `assets/comum/biscoito.png` (sem o arquivo, desenho de biscoito).
+- **Dança**: com música detectada (Spotify etc.), ele balança no compasso (um pulinho por tempo).
+- **Tempestade de Alt+Tab**: muitas trocas de janela em segundos viram uma crise curta: fica dramático
+  e tonto; silêncio de ~3 min entre crises.
+- **Susto com tela cheia**: algo abrindo em fullscreen de pegar a tela dá um pulo de susto.
+- **Malhação**: de vez em quando faz uma roda de pulinhos (gasta energia; depois repousa ~5–15 min).
+- **Sonhos**: dormindo, sonha de vez em quando — um meme aparece num balãozinho com fade.
+- **Caçada da bolinha mais insistente** quando a brincadeira está forte na rede, e fuga para o monitor
+  vizinho quando está bravo de verdade e há segundo monitor encostado.
+
 ## Integração com o Linux
 
 - A tela de Configurações ganha um bloco **Sistema** (só no Linux): "Abrir junto com o sistema"
