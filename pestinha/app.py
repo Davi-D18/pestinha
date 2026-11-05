@@ -667,10 +667,9 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             return
         if agora - self._digita_desde >= DIGITACAO_ATRASO:
             st.digitar_para = agora + 1.0            # a janela refresca enquanto você digita
-            if agora - self._digita_bilhete_em >= INTERVALO_BILHETE_DIGITANDO:
-                self._digita_bilhete_em = agora
-                if self._soltar_bilhete():
-                    log("[digitação] bilhete engraçado do tandem")
+            if agora - self._digita_bilhete_em >= INTERVALO_BILHETE_DIGITANDO and self._soltar_bilhete():
+                self._digita_bilhete_em = agora      # só conta quando a entrega partiu de fato
+                log("[digitação] bilhete engraçado do tandem")
 
     def _sonhos(self, now):
         """Dormindo, ele sonha de vez em quando: um mini meme num balãozinho acima da cabecinha."""
@@ -687,6 +686,23 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             st.dream_path = str(path)
             st.dream_de = now
             st.dream_ate = now + 8.0
+
+    def _soltar_bilhete(self):
+        """Bilhete (recadinho) no padrão das travessuras: ele pega, carrega pela tela e cola.
+
+        Falso quando o recado não pode sair (permissão, sem conteúdo) ou quando o corpo
+        não consegue pegar agora (no ar, ocupado, em missão) — aí nada é gasto.
+        """
+        if not (self.perms["travessuras"] and self.perms["bilhetes"]):
+            return False
+        body = self.pet.body
+        if body.held or not body.grounded or self.behavior.mission is not None:
+            return False
+        plan = self.mischief.plan("bilhete", self.pet_state.emotion)
+        if plan is None:
+            return False
+        self.behavior.start_mission(plan, self.bounds(), cursor_pos(), time.monotonic())
+        return True
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""

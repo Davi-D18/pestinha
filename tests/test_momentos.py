@@ -120,12 +120,16 @@ def test_presente_festa(monkeypatch, pet_app):
 
 def test_presente_bilhete(monkeypatch, com_recadinhos):
     app = com_recadinhos
+    app.pet.body.grounded = True       # ele só leva o recadinho se está no chão e livre
     app.perms["travessuras"] = True
     app.perms["bilhetes"] = True
     monkeypatch.setattr("pestinha.app.random.random", lambda: 0.5)
     app._presente_na_tela = True
     app._abrir_presente(time.monotonic())
-    assert len(app.mischief.things) == 1           # veio o bilhete
+    assert len(app.mischief.things) == 1           # veio o bilhete: ele vai carregá-lo pela tela
+    assert app.behavior.mission and app.behavior.mission[0] == "deliver"
+    thing = app.mischief.things[0]
+    assert getattr(thing, "carried", False)        # pendurado nele, não numa janela do topo
 
 
 def test_bilhete_sem_permissao_nao_sai(pet_app):
