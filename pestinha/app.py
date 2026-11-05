@@ -58,6 +58,12 @@ from .ajustes import (
     DURACAO_ATENDE_AGUA,
     DIGITACAO_ATRASO,
     INTERVALO_BILHETE_DIGITANDO,
+    PENALTI_ALCANCE_GOL as GOL_ALCANCE,
+    PENALTI_ALTURA_GOL as GOL_ALTURA,
+    PENALTI_ALTURA_PULO as PULO_GOLEIRO,
+    PENALTI_COLISAO as COLISAO_GOL,
+    PENALTI_EMPURRAO as EMPURRAO_GOLEIRO,
+    PENALTI_VIDA_JOGADA as VIDA_JOGADA,
 )
 from .body.behavior import Behavior
 from .body.bolinha import Ball, load_sprite
@@ -84,11 +90,13 @@ from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
 from .mind import sonho
+from .mind.penalti import DEFESAS_CARTAZ, PenaltiController
 from .paths import Paths
 from .sense import senses
 from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
 from .ui.ui import PanicHotkey, Tray
+from .world.cartazes import SignThing
 from .world.comida import Comida
 from .world.mischief import MischiefEngine
 from .world.presente import Presente
@@ -223,6 +231,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.mesa = MesaController(self.debugging, self)
         self.lembretes = Lembretes(self.paths.lembretes)
         self._lembrete_alerta = None
+        self.penalti = PenaltiController(self.paths.penalti)
         self.castigo = CastigoController(self, self.debugging)
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
@@ -757,6 +766,32 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         if self._entregar_recado(texto):
             log("[lembretes] entregou o recado na hora")
 
+    def _penalti_frame(self, agora, corpo, bola):
+        """Um passo do pênalti: goleiro desconfiado, defesa em cartaz, gol em fogos."""
+        acao = self.penalti.tick(agora, bola, corpo, self.bounds()[3],
+                                 GOL_ALCANCE, GOL_ALTURA, COLISAO_GOL, VIDA_JOGADA)
+        if acao is None:
+            return
+        tipo, *resto = acao
+        if tipo == "dive":
+            lado = resto[0] if resto else 1
+            corpo.jump(lado * EMPURRAO_GOLEIRO, PULO_GOLEIRO)   # o pulinho do goleiro
+        elif tipo == "defesa":
+            self.emotion.force("contente", 1.8, agora, PRIORITY["carinho"])
+            self._cartaz_da_defesa(corpo)
+            log("[pênalti] defendeu!")
+        elif tipo == "gol":
+            self.festa.fogos.launch(corpo.x, corpo.y - 60.0)    # passou da trave: festa
+            log("[pênalti] gol — fogos!")
+
+    def _cartaz_da_defesa(self, corpo):
+        """Cartaz rápido de defesa ('Na barra!', 'NÃO PASSA!'): apoiado no pet, cai como objeto."""
+        ex, ey = corpo.extents()
+        cartaz = SignThing(random.choice(DEFESAS_CARTAZ), "small")
+        cartaz.place(corpo.x, corpo.y - ey - cartaz.height() / 2 + 10.0)
+        self.mischief.things.append(cartaz)
+        cartaz.show()
+
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
         now = time.monotonic()
@@ -794,6 +829,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.protest_ctl.carry(now, self.asleep or preso)
         ball_bounds = self._bounds_at(areas, self.ball.body.x, self.ball.body.y)
         self.ball.step(dt, ball_bounds, areas, monitores)
+        self._penalti_frame(now, body, self.ball)
         if self.comida.isVisible():
             comida_bounds = self._bounds_at(areas, self.comida.body.x, self.comida.body.y)
             self.comida.step(dt, comida_bounds, areas, monitores)

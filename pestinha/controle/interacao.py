@@ -132,6 +132,8 @@ class InteracaoMixin:
         item("Oferecer biscoito", lambda: self.menu_comida("biscoito"), perms["comida"])
         item("Servir o café", lambda: self.menu_comida("cafe"), perms["comida"])
         item("Água fresca", lambda: self.menu_comida("agua"), perms["comida"])
+        item("Sair do pênalti" if self.penalti.ativo else "Pênalti com a bolinha",
+             self.menu_penalti, perms["bolinha"])
         item("Recolher o presente" if self._presente_na_tela else "Dar um presente",
              self.menu_presente, perms["presente"])
         item("Deixar um recado...", self.menu_recado, perms["bilhetes"])
@@ -220,6 +222,22 @@ class InteracaoMixin:
         if resultado and self.lembretes.adicionar(*resultado):
             texto, quando = resultado
             log(f"[lembretes] recado para {time.strftime('%H:%M', time.localtime(quando))}: {texto}")
+
+    def menu_penalti(self):
+        """Menu: liga/desliga o pênalti: ele fica de goleiro; a sua bolinha arremessada é o chute."""
+        ativo = not self.penalti.ativo
+        self.penalti.ativo = ativo
+        self.penalti.arremesso = None
+        self.pet_state.penalti = ativo
+        self.ball.aim_hint = ativo                   # a linha de mira só existe no jogo
+        if ativo:
+            self.ball_stored = False                 # garante a bolinha na tela
+            self.behavior.drop_carried()             # nada de missão com o goleiro parado
+            self.menu_place_ball()
+            log("[pênalti] começou: arremessa a bolinha nele")
+        else:
+            log("[pênalti] acabou a partida")
+        self.update_visibility()
 
     def menu_quieto(self):
         """Menu: 'Tacinho' (1 h quietsinho num canto) ou volta ao normal."""

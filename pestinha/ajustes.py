@@ -119,6 +119,17 @@ SONHO_CHANCE = 0.5              # chance de contar um sonho ao acordar descansad
 SONHO_MIN_PAUSA = 300.0         # s de pausa (suspensão) para voltar contando um sonho
 
 # ---------------------------------------------------------------------------
+# Pênalti na bolinha
+# ---------------------------------------------------------------------------
+PENALTI_FORCA_ARREMESSO = 350.0 # px/s: soltar a bolinha mais rápido que isso entra no jogo
+PENALTI_COLISAO = 64.0          # px: bolinha perto do corpo dele é defesa
+PENALTI_ALCANCE_GOL = 140.0     # px: passar a essa distância dele é gol
+PENALTI_ALTURA_GOL = 200.0      # px: gol só perto do chão (a "trave" subiu no alto)
+PENALTI_VIDA_JOGADA = 5.0       # s: jogada que não vira nada é cancelada
+PENALTI_EMPURRAO = 300.0        # px/s do pulinho lateral do goleiro
+PENALTI_ALTURA_PULO = -430.0    # px/s do pulinho do goleiro (vy)
+
+# ---------------------------------------------------------------------------
 # Malhação
 # ---------------------------------------------------------------------------
 GASTO_TREINO = 0.006            # energia por segundo de treino (energia/s)
@@ -252,6 +263,13 @@ _LIMITES = {
     "INTERVALO_BILHETE_DIGITANDO": (float, 0.0, 7200.0),
     "SONHO_CHANCE": (float, 0.0, 1.0),
     "SONHO_MIN_PAUSA": (float, 0.0, 86400.0),
+    "PENALTI_FORCA_ARREMESSO": (float, 0.0, 4000.0),
+    "PENALTI_COLISAO": (float, 10.0, 300.0),
+    "PENALTI_ALCANCE_GOL": (float, 10.0, 1000.0),
+    "PENALTI_ALTURA_GOL": (float, 10.0, 1000.0),
+    "PENALTI_VIDA_JOGADA": (float, 0.5, 60.0),
+    "PENALTI_EMPURRAO": (float, 0.0, 2000.0),
+    "PENALTI_ALTURA_PULO": (float, -2000.0, 0.0),
     "GASTO_TREINO": (float, 0.0, 1.0),
     "LIMIAR_SENTAR_HZ": (float, 0.0, 200.0),
     "LIMIAR_LEVANTAR_HZ": (float, 0.0, 200.0),

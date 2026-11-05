@@ -48,6 +48,7 @@ class PetState:
         self.beijo_para = 0.0       # coraçãozinho do beijo na tela até aqui
         self.digitar_para = 0.0     # tandem de digitação: patinhas digitando até aqui
         self.quieto_ate = 0.0       # modo Tacinho: fica quietinho num canto até aqui
+        self.penalti = False        # em pênalti: fica de goleiro, sem passear
         self.dream_path = None      # caminho da imagem do sonho (mostrada enquanto ele dorme)
         self.dream_de = 0.0         # quando o sonho começou (para o fade do balão)
         self.dream_ate = 0.0        # até quando o sonho fica na tela

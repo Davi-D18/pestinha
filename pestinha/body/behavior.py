@@ -198,6 +198,12 @@ class Behavior:
             self.next_roam = now + 1.0
             return
 
+        # goleiro do pênalti: parado no lugar; o pulinho de defesa fica por conta do app
+        if st.penalti:
+            body.vx = 0.0
+            self.next_roam = now + 1.0
+            return
+
         # tonto, dormindo ou ganhando carinho: fica paradinho
         if st.at_desk:                                  # sentado no notebook: trabalha, sem passear
             body.vx = 0.0
