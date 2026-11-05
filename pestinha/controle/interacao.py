@@ -12,6 +12,7 @@ import time
 from PySide6.QtWidgets import QMenu
 from ..store import read_json, write_json
 from ..core.emotion import PRIORITY
+from ..ui.ui import RecadoDialog
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
     COOLDOWN_CUTUCADA as POKE_COOLDOWN,
@@ -133,6 +134,7 @@ class InteracaoMixin:
         item("Água fresca", lambda: self.menu_comida("agua"), perms["comida"])
         item("Recolher o presente" if self._presente_na_tela else "Dar um presente",
              self.menu_presente, perms["presente"])
+        item("Deixar um recado...", self.menu_recado, perms["bilhetes"])
         quieto = self.pet_state.quieto()
         item("Pode voltar a conversar" if quieto else "Tacinho (fica quietinho 1 h)", self.menu_quieto)
         menu.addSeparator()
@@ -211,6 +213,13 @@ class InteracaoMixin:
             self._presente_elevado_em = time.monotonic()
             log("[presente] caixinha na tela")
         self.update_visibility()
+
+    def menu_recado(self):
+        """Menu: 'Deixar um recado...': texto e hora; na hora ele cutuca e cola o bilhete."""
+        resultado = RecadoDialog.pedir()
+        if resultado and self.lembretes.adicionar(*resultado):
+            texto, quando = resultado
+            log(f"[lembretes] recado para {time.strftime('%H:%M', time.localtime(quando))}: {texto}")
 
     def menu_quieto(self):
         """Menu: 'Tacinho' (1 h quietsinho num canto) ou volta ao normal."""

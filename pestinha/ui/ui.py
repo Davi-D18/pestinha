@@ -8,7 +8,7 @@ import os
 import sys
 import tempfile
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QDate, QDateTime, QObject, QTime, Qt, Signal
 from PySide6.QtGui import QAction, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSystemTrayIcon,
+    QTimeEdit,
+    QLineEdit,
     QWidget,
     QVBoxLayout,
 )
@@ -63,6 +65,53 @@ def face_icon(emotion="observando"):
     draw_face(p, EYE_SHAPES[emotion])
     p.end()
     return QIcon(pix)
+
+
+class RecadoDialog(QDialog):
+    """Deixar um recado com horário: texto e hora; na hora o pet cutuca e cola o bilhete."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"{config.APP_NOME} — recado")
+        self.setWindowIcon(face_icon())
+        self.setStyleSheet(STYLE)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("O que ele deve lembrar?"))
+        self.texto = QLineEdit()
+        self.texto.setPlaceholderText("Ex.: café para você às 15h")
+        layout.addWidget(self.texto)
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Avisar às"))
+        self.hora = QTimeEdit(QTime.currentTime())
+        self.hora.setDisplayFormat("HH:mm")
+        linha.addWidget(self.hora)
+        layout.addLayout(linha)
+        botoes = QHBoxLayout()
+        ok = QPushButton("Deixar recado")
+        ok.setDefault(True)
+        ok.clicked.connect(self.accept)
+        cancelar = QPushButton("Cancelar")
+        cancelar.clicked.connect(self.reject)
+        botoes.addWidget(ok)
+        botoes.addWidget(cancelar)
+        layout.addLayout(botoes)
+
+    @classmethod
+    def pedir(cls, parent=None):
+        """Abre o diálogo; devolve (texto, quando_epoch) ou None (cancelado/vazio).
+
+        Hora que já passou hoje vale para amanhã.
+        """
+        dialog = cls(parent)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        texto = dialog.texto.text().strip()
+        if not texto:
+            return None
+        quando = QDateTime(QDate.currentDate(), dialog.hora.time())
+        if quando <= QDateTime.currentDateTime():
+            quando = quando.addDays(1)
+        return texto, quando.toSecsSinceEpoch()
 
 
 class SettingsDialog(QDialog):

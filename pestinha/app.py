@@ -77,6 +77,7 @@ from .core.protesto import Protesto
 from .log import log
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
+from .mind.lembretes import Lembretes
 from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
@@ -220,6 +221,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.mischief_ctl.postit_weight = Play(self.play_weights).weight("postit")
         self.festa = FestaController(self.debugging)
         self.mesa = MesaController(self.debugging, self)
+        self.lembretes = Lembretes(self.paths.lembretes)
+        self._lembrete_alerta = None
         self.castigo = CastigoController(self, self.debugging)
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
@@ -586,6 +589,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
         self.sleep.tick(now, body, self.in_flight, self.protest.stage, self.behavior.mission)
         self._sonhos(now)
+        self._lembrete_tick(now)
 
         emotion = self.emotion.update(motor, dt, self.prof)
         if self.protest.stage >= 2 and not self.asleep:
@@ -731,6 +735,27 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         texto = sonho.contar(self.memory)
         if texto and self._entregar_recado(texto):
             log("[sonho] contou o sonho ao acordar")
+
+    def _lembrete_tick(self, agora):
+        """Recado venceu: cutuca três vezes (espaçadas) e cola o bilhete pelo padrão."""
+        if self._lembrete_alerta is None:
+            vencido = self.lembretes.vencer()
+            if vencido is None:
+                return
+            self._lembrete_alerta = [agora, 0, vencido]     # [próximo passo, cutucadas feitas, texto]
+            return
+        inicio, feitas, texto = self._lembrete_alerta
+        if agora - inicio < 0.55:
+            return
+        self._lembrete_alerta[0] = agora
+        feitas += 1
+        self._lembrete_alerta[1] = feitas
+        if feitas <= 3:
+            self.menu_poke()                                # cutucada pedindo atenção
+            return
+        self._lembrete_alerta = None
+        if self._entregar_recado(texto):
+            log("[lembretes] entregou o recado na hora")
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""

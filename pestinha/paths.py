@@ -220,6 +220,11 @@ class Paths:
         return self.memory / "permissions.json"
 
     @property
+    def lembretes(self):
+        """Recados com horário que você deixou para ele lembrar."""
+        return self.memory / "lembretes.json"
+
+    @property
     def timeline(self):
         """Sua rotina, um minuto por linha (só com 'Aprender minha rotina' ligado)."""
         return self.memory / "timeline.csv"
