@@ -106,6 +106,21 @@ class MischiefEngine(QObject):
 
     # ---------------- colocação ----------------
 
+    def plan_texto(self, text):
+        """Plano ('deliver', bilhete) para um texto pronto (sonho, recado com horário).
+
+        O pet pega, carrega pela tela e cola, como qualquer travessura. Texto vazio
+        ou bilhete ilegível devolve None.
+        """
+        if not isinstance(text, str) or not text.strip():
+            return None
+        thing = NoteThing(text, small=False)
+        if not getattr(thing, "valida", True):
+            thing.deleteLater()
+            return None
+        thing.clicked.connect(self._on_click)
+        return ("deliver", thing)
+
     def show_in_corner(self, thing, bounds, cursor):
         """Põe o objeto num canto da tela (travessura 'de revolta')."""
         left, top, right, bottom = bounds

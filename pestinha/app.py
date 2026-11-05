@@ -82,6 +82,7 @@ from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
+from .mind import sonho
 from .paths import Paths
 from .sense import senses
 from .sense.timeline import TimelineRecorder
@@ -196,7 +197,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior = Behavior(self.pet.body, self.pet_state, self.mischief)
 
         # ----- controladores -----
-        self.sleep = SleepController(self.emotion, self.drives, self.memory, self.debugging)
+        self.sleep = SleepController(self.emotion, self.drives, self.memory, self.debugging,
+                                     self._sonho_ao_acordar)
         self.protest_ctl = ProtestController(self.protest, self.pet.body, self.behavior,
                                              self.senses, self.drives, self.pet_state, self.debugging)
         self.sad = Protesto(self.conteudo.signs, self.pet_paths.sad_protest, kind="tristeza")
@@ -703,6 +705,32 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             return False
         self.behavior.start_mission(plan, self.bounds(), cursor_pos(), time.monotonic())
         return True
+
+    def _entregar_recado(self, texto):
+        """Recado escrito por nós (sonho, lembrete): o pet pega, carrega e cola.
+
+        Falso se o texto é vazio ou o corpo não consegue pegar agora (no ar,
+        ocupado, em missão) — aí nada é entregue e nada é gasto.
+        """
+        if self.pet.body.held or not self.pet.body.grounded or self.behavior.mission is not None:
+            return False
+        plan = self.mischief.plan_texto(texto)
+        if plan is None:
+            return False
+        self.behavior.start_mission(plan, self.bounds(), cursor_pos(), time.monotonic())
+        return True
+
+    def _sonho_ao_acordar(self, startled=False):
+        """Ao acordar descansado, conta um sonho costurado com o que aconteceu de verdade.
+
+        Susto não é hora de conversar; sem episódios de memória, o sonho fica vazio
+        e o pet fica quieto. A chance vem do ajuste (SONHO_CHANCE).
+        """
+        if startled:
+            return
+        texto = sonho.contar(self.memory)
+        if texto and self._entregar_recado(texto):
+            log("[sonho] contou o sonho ao acordar")
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""

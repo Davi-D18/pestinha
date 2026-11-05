@@ -12,12 +12,13 @@ from ..core.emotion import PRIORITY
 
 class SleepController:
     """Quando ele dorme e acorda: dorme se estiver cansado, no chão e sem estar em protesto ou em missão."""
-    def __init__(self, emotion, drives, memory, debug):
-        """Guarda a emoção, as necessidades e a memória."""
+    def __init__(self, emotion, drives, memory, debug, on_wake=None):
+        """Guarda a emoção, as necessidades, a memória e quem quer saber do despertar."""
         self.emotion = emotion
         self.drives = drives
         self.memory = memory
         self.debug = debug          # função -> bool: imprime no terminal só no modo teste
+        self.on_wake = on_wake      # função(startled): chamada toda vez que ele acorda
         self.asleep = False
 
     def can_sleep(self, body, in_flight, protest_stage, mission):
@@ -53,3 +54,5 @@ class SleepController:
         if self.debug():
             how = "no susto" if startled else "descansado"
             log(f"[sono] acordou {how} ({self.drives.describe()})")
+        if self.on_wake is not None:
+            self.on_wake(startled)

@@ -12,6 +12,7 @@ from ..log import log
 import time
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from .. import config
+from ..ajustes import SONHO_MIN_PAUSA
 from ..ui.ui import SettingsDialog
 
 
@@ -117,10 +118,15 @@ class SessaoMixin:
                 self.castigo.deslocar(parado)                    # nem a fuga, a entrada e o cartaz
                 self.mesa.deslocar(parado)                       # nem o pedido de trabalho
                 self.conditioning.deslocar(parado)               # nem as janelas de condicionamento
+                if parado >= SONHO_MIN_PAUSA:
+                    self._sonho_depois_da_luz = True
                 self._pausado_em = None
             self._ultimo_think = now                             # a retomada não cobra o tempo parado
         self.festa.fogos.pausar(self.paused)
         self.update_visibility()
+        if getattr(self, "_sonho_depois_da_luz", None):
+            self._sonho_depois_da_luz = False                    # contar só quando a tela está viva de novo
+            self._sonho_ao_acordar()
 
     def menu_close(self):
         """Esconde o pet pelo menu (sem desligar)."""

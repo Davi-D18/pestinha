@@ -113,6 +113,12 @@ DIGITACAO_ATRASO = 30.0         # s digitando seguidos até ele "digitar junto"
 INTERVALO_BILHETE_DIGITANDO = 90.0  # s entre bilhetes engraçados do tandem de digitação
 
 # ---------------------------------------------------------------------------
+# Sonho contado
+# ---------------------------------------------------------------------------
+SONHO_CHANCE = 0.5              # chance de contar um sonho ao acordar descansado
+SONHO_MIN_PAUSA = 300.0         # s de pausa (suspensão) para voltar contando um sonho
+
+# ---------------------------------------------------------------------------
 # Malhação
 # ---------------------------------------------------------------------------
 GASTO_TREINO = 0.006            # energia por segundo de treino (energia/s)
@@ -244,6 +250,8 @@ _LIMITES = {
     "DURACAO_TACINHO": (float, 0.0, 86400.0),
     "DIGITACAO_ATRASO": (float, 0.0, 600.0),
     "INTERVALO_BILHETE_DIGITANDO": (float, 0.0, 7200.0),
+    "SONHO_CHANCE": (float, 0.0, 1.0),
+    "SONHO_MIN_PAUSA": (float, 0.0, 86400.0),
     "GASTO_TREINO": (float, 0.0, 1.0),
     "LIMIAR_SENTAR_HZ": (float, 0.0, 200.0),
     "LIMIAR_LEVANTAR_HZ": (float, 0.0, 200.0),
