@@ -60,6 +60,11 @@ def ocioso_segundos():
     return ocioso_do_ioreg(rodar(["ioreg", "-c", "IOHIDSystem", "-d", "4"]) or "")
 
 
+def ocioso_confiavel():
+    """A leitura do macOS (Quartz ou ioreg) é sempre uma medição real."""
+    return True
+
+
 def processo_ativo():
     """Nome do programa em primeiro plano, em minúsculo."""
     app = _programa_da_frente()

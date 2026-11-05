@@ -26,8 +26,18 @@ if sys.platform == "darwin":
 elif sys.platform == "win32":
     from pestinha.plataforma import windows  # noqa: E402
 
-FUNCOES = ["ocioso_segundos", "processo_ativo", "retangulo_ativo", "tela_cheia",
+FUNCOES = ["ocioso_segundos", "ocioso_confiavel", "processo_ativo", "retangulo_ativo", "tela_cheia",
            "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho"]
+
+
+def test_identificacao_linux_do_idle(monkeypatch):
+    """0 do fallback (sem xprintidle/Wayland) devolve 0 mas NÃO é medição; leitura de número é."""
+    monkeypatch.setattr(linux, "rodar", lambda comando: "")
+    assert linux.ocioso_segundos() == 0.0
+    assert linux.ocioso_confiavel() is False
+    monkeypatch.setattr(linux, "rodar", lambda comando: "12345")
+    assert linux.ocioso_segundos() == 12.345
+    assert linux.ocioso_confiavel() is True
 
 
 def test_cada_sistema_expoe_as_mesmas_funcoes():

@@ -61,6 +61,15 @@ def get_idle_seconds():
     return plataforma.ocioso_segundos()
 
 
+def idle_confiavel():
+    """Diz se a plataforma mede o tempo ocioso de verdade.
+
+    Sem medição real (Wayland, xprintidle faltando), o fallback é 0 = "sempre ativo":
+    se isso contasse como input, o pet "digitaria" sem ninguém digitar.
+    """
+    return plataforma.ocioso_confiavel()
+
+
 def get_active_app():
     """Nome do programa em primeiro plano, em minúsculo (leitura da plataforma)."""
     return plataforma.processo_ativo()
@@ -266,7 +275,8 @@ class ComputerSenses:
         """strength 0..1 (velocidade da batida); a irritação acumula entre batidas."""
         self.kick("IMPACT", 0.5 * strength)
 
-    def update(self, activity, idle_seconds, drives, caressing=False, mouse_moving=False):
+    def update(self, activity, idle_seconds, drives, caressing=False, mouse_moving=False,
+               idle_confiavel=True):
         """drives: canais internos da homeostase (BOREDOM, LONELY, FATIGUE)."""
         now = time.monotonic()
         dt = clamp(now - self.last, 0.0, 1.0)
@@ -281,8 +291,10 @@ class ComputerSenses:
             self.level[name] += (target - self.level[name]) * (1.0 - math.exp(-dt / 3.0))
 
         # TYPING é teclado: input recente com o mouse parado (e nunca durante o carinho,
-        # que é mexer o mouse). Antes, mexer o mouse contava como digitar.
-        typing_now = 1.0 if idle_seconds < 0.3 and not mouse_moving and not caressing else 0.0
+        # que é mexer o mouse). Antes, mexer o mouse contava como digitar. E só com
+        # medição real do tempo ocioso: o 0 do fallback não é input, é "não sei medir".
+        typing_now = 1.0 if (idle_seconds < 0.3 and idle_confiavel
+                             and not mouse_moving and not caressing) else 0.0
         self.typing += (typing_now - self.typing) * (1.0 - math.exp(-dt / 2.0))
 
         drag_now = 1.0 if self.dragging else 0.0

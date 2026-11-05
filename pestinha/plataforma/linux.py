@@ -90,10 +90,24 @@ def _tela():
     return None
 
 
+_leitura_idle_ok = False
+
+
 def ocioso_segundos():
     """Tempo ocioso pelo xprintidle (X11). Em Wayland ou sem o comando, devolve 0 (sempre ativo)."""
+    global _leitura_idle_ok
     texto = (rodar(["xprintidle"]) or "").strip()
-    return int(texto) / 1000.0 if texto.isdigit() else 0.0
+    _leitura_idle_ok = bool(texto.isdigit())
+    return int(texto) / 1000.0 if _leitura_idle_ok else 0.0
+
+
+def ocioso_confiavel():
+    """Diz se a última leitura do tempo ocioso veio mesmo do xprintidle.
+
+    O 0 do fallback ("sempre ativo") não é medição: tratá-lo com input real fazia o pet
+    "digitar" de propósito quando ninguém digitou nada.
+    """
+    return _leitura_idle_ok
 
 
 def processo_ativo():

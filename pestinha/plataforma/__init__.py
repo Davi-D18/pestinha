@@ -5,6 +5,7 @@ Cada sistema tem um módulo com as mesmas funções (windows.py, macos.py, linux
 escolhe o certo na importação. Os retângulos são em pixels físicos (o app divide pelo dpr).
 
     ocioso_segundos()            segundos desde o último teclado ou mouse
+    ocioso_confiavel()           a última leitura do tempo ocioso é uma medição real (não fallback)
     processo_ativo()             nome (minúsculo) do programa em primeiro plano
     retangulo_ativo(escala)      retângulo da janela em primeiro plano, ou None
     tela_cheia()                 a janela em primeiro plano cobre o monitor inteiro
@@ -30,6 +31,7 @@ else:
 NOME_DO_SISTEMA = {"win32": "Windows", "darwin": "macOS"}.get(sys.platform, "Linux")
 
 ocioso_segundos = _backend.ocioso_segundos
+ocioso_confiavel = _backend.ocioso_confiavel
 processo_ativo = _backend.processo_ativo
 retangulo_ativo = _backend.retangulo_ativo
 tela_cheia = _backend.tela_cheia
@@ -41,6 +43,6 @@ iniciar_atalho = _backend.iniciar_atalho
 modo_sessao = getattr(_backend, "modo_sessao", None)
 avisos_sessao = getattr(_backend, "avisos_sessao", lambda: [])
 
-__all__ = ["NOME_DO_SISTEMA", "ocioso_segundos", "processo_ativo", "retangulo_ativo", "tela_cheia",
-           "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho", "canal_panic_sinal", "carga_sistema",
-           "modo_sessao", "avisos_sessao"]
+__all__ = ["NOME_DO_SISTEMA", "ocioso_segundos", "ocioso_confiavel", "processo_ativo", "retangulo_ativo",
+           "tela_cheia", "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho", "canal_panic_sinal",
+           "carga_sistema", "modo_sessao", "avisos_sessao"]

@@ -446,6 +446,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
         # teclado x mouse: o sistema só dá "último input"; separamos olhando se o cursor andou
         idle = senses.get_idle_seconds()
+        idle_ok = senses.idle_confiavel()
         cursor = cursor_pos()
         if abs(cursor[0] - self.last_cursor[0]) + abs(cursor[1] - self.last_cursor[1]) > 2:
             self.mouse_moved_at = now
@@ -465,7 +466,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.drives.touched("caress", dt)
             self.memory.on_interaction()
 
-        intensities = self.senses.update(self.activity, idle, self.drives.channels(), caressing, mouse_moving)
+        intensities = self.senses.update(self.activity, idle, self.drives.channels(), caressing,
+                                         mouse_moving, idle_confiavel=idle_ok)
         # condicionamento: o cursor vindo rápido para ele, ou o botão apertado em cima, antecipam
         dist = math.hypot(cursor[0] - body.x, cursor[1] - body.y)
         approaching = (self.prev_pet_dist is not None and dist < 220

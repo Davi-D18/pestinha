@@ -35,6 +35,11 @@ def ocioso_segundos():
     return ((now - info.dwTime) & 0xFFFFFFFF) / 1000.0
 
 
+def ocioso_confiavel():
+    """A leitura do Windows (GetLastInputInfo) é sempre uma medição real."""
+    return True
+
+
 def processo_ativo():
     """Nome do programa da janela ativa, pelo pid da janela e o psutil."""
     hwnd = win32gui.GetForegroundWindow()
