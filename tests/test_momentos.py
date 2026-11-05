@@ -205,13 +205,69 @@ def test_tacinho_fica_no_canto(pet_app):
 
 # ---------------------------------------------------------------- tandem de digitação
 
-def test_treatando_tandem_ativa_e_para(pet_app):
-    st = pet_app.pet_state
-    agora = time.monotonic()
-    pet_app._digita_desde, pet_app._digita_bilhete_em = None, agora - 1e9
-    passo = 0.5
-    for k in range(70):                        # 35 s digitando (o atraso é 30 s)
-        pet_app._atualiza_tandem(agora + k * passo, 1.0)
+@pytest.fixture
+def tandem_trabalhando(pet_app, monkeypatch):
+    """Pet em condições de tandem: medição real de idle e app de trabalho em primeiro plano."""
+    from pestinha.sense import senses
+    pet_app.activity = "PROGRAMMING"
+    monkeypatch.setattr(senses, "idle_confiavel", lambda: True)
+    return pet_app
+
+
+def _digita(pet_app, segundos=35.0, agora=None):
+    """Simula digitação contínua pelo tempo dado (o atraso do tandem é 30 s)."""
+    base = time.monotonic() if agora is None else agora
+    pet_app._digita_desde, pet_app._digita_bilhete_em = None, base - 1e9
+    for k in range(int(segundos * 2)):
+        pet_app._atualiza_tandem(base + k * 0.5, 1.0)
+    return base
+
+
+def test_trabalhando_tandem_ativa_e_para(tandem_trabalhando):
+    st = tandem_trabalhando.pet_state
+    agora = _digita(tandem_trabalhando, agora=time.monotonic())
     assert st.digitar_para > agora             # digitei junto: patinhas animam
-    pet_app._atualiza_tandem(agora + 40.0, 0.0)
-    assert pet_app._digita_desde is None       # parou de digitar, ele também para
+    tandem_trabalhando._atualiza_tandem(agora + 40.0, 0.0)
+    assert tandem_trabalhando._digita_desde is None       # parou de digitar, ele também para
+
+
+def test_tandem_nao_rola_fora_do_trabalho_ou_sem_medicao(pet_app, monkeypatch):
+    from pestinha.sense import senses
+    st = pet_app.pet_state
+    base = time.monotonic()
+    pet_app._digita_desde, pet_app._digita_bilhete_em = None, base - 1e9
+    for k in range(70):                        # app de fora da família trabalho: nada de tandem
+        pet_app._atualiza_tandem(base + k * 0.5, 1.0)
+    assert st.digitar_para <= base
+    pet_app.activity = "PROGRAMMING"           # agora o app é de trabalho, mas...
+    monkeypatch.setattr(senses, "idle_confiavel", lambda: False)   # sem medição real (Wayland)
+    pet_app._digita_desde = None
+    for k in range(70):
+        pet_app._atualiza_tandem(base + 100.0 + k * 0.5, 1.0)
+    assert st.digitar_para <= base + 100.0     # ...o 0 do fallback não é "você digitando"
+
+
+def test_tandem_nao_rola_dormindo_bravo_ou_punido(tandem_trabalhando):
+    app = tandem_trabalhando
+    st = app.pet_state
+    base = time.monotonic()
+    estados = ("dormindo", "bravo", "triste", "assustado", "protesto", "castigo", "tacinho")
+    for caso in estados:
+        if caso == "protesto":
+            st.protest_stage = 2
+        elif caso == "castigo":
+            st.castigo = True
+        elif caso == "tacinho":
+            st.quieto_ate = base + 60.0
+        elif caso != "dormindo":
+            app.behavior.emotion = caso
+        else:
+            app.sleep.asleep = True       # dormindo de verdade (o caminho que a propriedade lê)
+        app._digita_desde, app._digita_bilhete_em = None, base - 1e9
+        st.digitar_para = 0.0
+        for k in range(70):                    # você digita, mas ele está fora de si
+            app._atualiza_tandem(base + k * 0.5, 1.0)
+        assert st.digitar_para <= base, caso
+        app.sleep.asleep = False
+        st.protest_stage, st.castigo, st.quieto_ate = 0, False, 0.0
+        app.behavior.emotion = "observando"

@@ -91,6 +91,11 @@ from .world.comida import Comida
 from .world.mischief import MischiefEngine
 from .world.presente import Presente
 
+# Tandem de digitação só existe no clima tranquilo, fazendo companhia ao trabalho:
+# bravo/triste/assustado/dramatico/dormindo (e o resto) nunca "digitam junto".
+TANDEM_EMOCOES = ("feliz", "contente", "curioso", "observando")
+TANDEM_ATIVIDADES = ("PROGRAMMING", "DESIGNING")
+
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
 
 SAVE_EVERY_MS = 30_000
@@ -644,18 +649,17 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.emotion.force("triste", 2.5, agora, PRIORITY["protesto"])
             log("[presente] abriu: era uma pedra (cara triste)")
 
-    def _soltar_bilhete(self):
-        """Põe um bilhete (recadinho) no alto da tela; falso se travessuras/bilhetes estiverem desligados ou não houver recado."""
-        if not (self.perms["travessuras"] and self.perms["bilhetes"]):
-            return False
-        left, top, right, _bottom = self.bounds()
-        x = random.uniform(left + 240.0, max(left + 240.0, right - 240.0))
-        return self.mischief.soltar_bilhete(self.pet_state.emotion, x, top + 150.0)
-
     def _atualiza_tandem(self, agora, digitando):
         """Você digitando há um tempo seguido: ele fica "digitando junto" e, de vez em quando, cola um bilhete engraçado."""
         st = self.pet_state
-        if digitando < 0.55 or self.pet.body.held:
+        # o tandem é uma mímica de você digitando — só existe quando você de fato
+        # está digitando num app de trabalho, com medição real de idle, e ele está num
+        # estado em que imitar faz sentido (não dormindo, bravo, de castigo ou escondido)
+        if (digitando < 0.55 or self.pet.body.held
+                or not senses.idle_confiavel()
+                or self.activity not in TANDEM_ATIVIDADES
+                or self.behavior.emotion not in TANDEM_EMOCOES
+                or self.asleep or st.protest_stage or st.castigo or st.quieto(agora)):
             self._digita_desde = None
             return
         if self._digita_desde is None:
