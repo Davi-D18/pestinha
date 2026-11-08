@@ -68,7 +68,7 @@ from .ajustes import (
 from .body.behavior import Behavior
 from .body.bolinha import Ball, load_sprite
 from .body.brincadeira import Play
-from .body.desenho_rosto import aparencia_de
+from .body.desenho_rosto import aparencia_com, aparencia_de
 from .body.pet import PetWindow, cursor_pos
 from .body.pet_state import PetState
 from .body.toy import ToyTracker, bounce_off, push_from_cursor
@@ -84,6 +84,7 @@ from .log import log
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
 from .mind.lembretes import Lembretes
+from .mind.loja import Loja
 from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
@@ -902,4 +903,3 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
     # ---------------- controles ----------------
 
     # ---------------- menu do botão direito ----------------
-

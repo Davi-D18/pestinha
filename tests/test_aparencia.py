@@ -65,7 +65,7 @@ def test_valor_invalido_fica_com_o_padrao():
                       "acessorios": {"chapeu": "#ffffff", "gravata": "azul", "oculos": "#000000"}})
     assert a.moldura == FRAME and a.olho == EYE and a.tela == SCREEN
     assert a.casca == QColor("#abcdef")
-    assert [n for n, _c in a.acessorios] == ["oculos", "gravata"]            # chapéu não existe; ordem fixa
+    assert [n for n, _c in a.acessorios] == ["oculos", "gravata", "chapeu"]   # chapéu existe agora; ordem fixa
     assert dict(a.acessorios)["gravata"] == QColor("#b3261e")               # cor ruim: a padrão do acessório
     for ruim in (None, [], "x", {"acessorios": ["oculos"]}):
         assert aparencia_de(ruim).acessorios == ()

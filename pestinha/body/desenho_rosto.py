@@ -22,9 +22,9 @@ SCREEN = QColor("#171e19")
 EYE = QColor("#3ee877")
 SHINE = QColor("#c8ffd8")
 
-ACESSORIOS = ("oculos", "gravata")
+ACESSORIOS = ("oculos", "gravata", "chapeu", "cachecol")
 COR_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
-COR_PADRAO_ACESSORIO = {"oculos": "#e8e8e8", "gravata": "#b3261e"}
+COR_PADRAO_ACESSORIO = {"oculos": "#e8e8e8", "gravata": "#b3261e", "chapeu": "#ffd84d", "cachecol": "#e0474c"}
 
 
 @dataclass(frozen=True)
@@ -64,6 +64,21 @@ def aparencia_de(dados):
 PADRAO = Aparencia()
 
 
+def aparencia_com(base, nome=None):
+    """A aparência base, mais (ou sem) o acessório que ele veste da loja.
+
+    Guarda a ordem de sempre (óculos, gravata, ...) para nada cobrir nada. `nome`
+    None tira tudo que não vem do pet.json.
+    """
+    juntos = [(nome_a, cor) for nome_a, cor in base.acessorios if nome_a != nome]
+    if nome is not None and all(nome_a != nome for nome_a, _cor in base.acessorios):
+        cor = COR_PADRAO_ACESSORIO.get(nome, "#e8e8e8")
+        juntos.append((nome, QColor(cor)))
+    ordenados = tuple(sorted(juntos, key=lambda ac: ACESSORIOS.index(ac[0])))
+    return Aparencia(moldura=base.moldura, casca=base.casca, tela=base.tela,
+                     olho=base.olho, brilho=base.brilho, acessorios=ordenados)
+
+
 def lerp_shape(current, target, k):
     """Interpola duas formas de olho: `k` entre 0 (atual) e 1 (alvo), para a transição ser suave."""
     return {key: current[key] + (target[key] - current[key]) * k for key in target}
@@ -81,7 +96,6 @@ def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinh
     for nome, cor in a.acessorios:
         if nome == "gravata":                          # por cima da tela, sempre dentro do contorno do corpo
             _gravata(p, cor)
-
     if carinho:
         # carinho: olhinhos fechados de felicidade, em arco para cima (^ ^)
         p.setPen(QPen(a.olho, 5, Qt.SolidLine, Qt.RoundCap))
@@ -95,6 +109,37 @@ def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinh
     for nome, cor in a.acessorios:
         if nome == "oculos":
             _oculos(p, cor)
+        elif nome == "chapeu":
+            _chapeu(p, cor)
+        elif nome == "cachecol":
+            _cachecol(p, cor)
+
+
+def _chapeu(p, cor):
+    """Chapéu de aba: copa no alto da cabeça e a aba por baixo, na cor do acessório."""
+    p.save()
+    escura = cor.darker(140)
+    topo = -BODY_H / 2 + 3                              # copa apoiada no topo do corpo
+    p.setPen(QPen(escura, 1.6))
+    p.setBrush(cor)
+    p.drawRoundedRect(QRectF(-BODY_W * 0.26, topo - 20.0, BODY_W * 0.52, 22.0), 6, 6)   # copa
+    p.setPen(QPen(escura, 1.4))
+    p.drawEllipse(QRectF(-BODY_W * 0.46, topo - 3.0, BODY_W * 0.92, 8.0))               # aba
+    p.restore()
+
+
+def _cachecol(p, cor):
+    """Cachecol na barra de baixo do corpo, com a ponta caindo do lado direito."""
+    p.save()
+    escura = cor.darker(140)
+    baixo = BODY_H / 2 - 20                             # colado perto da base da tela
+    p.setPen(QPen(escura, 1.6))
+    p.setBrush(cor)
+    p.drawRoundedRect(QRectF(-BODY_W * 0.40, baixo, BODY_W * 0.80, 10.0), 4, 4)
+    p.setBrush(cor)
+    p.setPen(QPen(escura, 1.2))
+    p.drawRoundedRect(QRectF(9.0, baixo + 8.0, 9.0, 22.0), 3, 3)    # a ponta do cachecol
+    p.restore()
 
 
 def _olhos(p, shape, gaze, blink, emotion, a):
