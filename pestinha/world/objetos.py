@@ -4,6 +4,7 @@ OBJETOS - os post-its, memes e fotos que o pet traz, como janelas na tela.
 Só desenho e clique. Quem decide criar, largar e remover fica em mischief.py.
 """
 
+import math
 import random
 import time
 
@@ -15,6 +16,7 @@ from ..body.pet import overlay_flags, set_no_activate
 from ..ajustes import GRAVIDADE as GRAVITY
 
 NOTE_SIZE = (180, 150)
+NOTE_INCLINACAO_MAX = 6.0     # mesmo alcance do tilt: o tamanho da janela já compte o papel girado
 
 
 class Thing(QWidget):
@@ -87,14 +89,29 @@ class ImageThing(Thing):
         p.end()
 
 
+def _janela_do_papel(w, h):
+    """Tamanho de janela que cabe o papel (w, h) girado até NOTE_INCLINACAO_MAX.
+
+    O retângulo girado fica mais largo (as diagonais crescem), e a sombra anda
+    (3, 4) para baixo-direita: sem folga, as bordas de cima e de baixo cortavam."""
+    a = math.radians(NOTE_INCLINACAO_MAX)
+    girado_w = w * abs(math.cos(a)) + h * abs(math.sin(a))
+    girado_h = h * abs(math.cos(a)) + w * abs(math.sin(a))
+    return int(math.ceil(girado_w + 10)), int(math.ceil(girado_h + 10))
+
+
 class NoteThing(Thing):
     """Post-it com uma frase, num papel amarelo."""
     def __init__(self, text, small=False):
-        """Monta o post-it com o texto; `small` é o tamanho de canto (bilhete de revolta)."""
+        """Monta o post-it com o texto; `small` é o tamanho de canto (bilhete de revolta).
+
+        A janela precisa caber o papel GIRO (o tilt pode chegar a NOTE_INCLINACAO_MAX)
+        mais a sombra: janela no tamanho do papel deixava o topo e o fundo cortados."""
         w, h = NOTE_SIZE
         if small:
             w, h = int(w * 0.75), int(h * 0.75)
-        super().__init__(w + 20, h + 20)
+        janela = _janela_do_papel(w, h)
+        super().__init__(janela[0], janela[1])
         self.text = text
         self.small = small
         self.note_w, self.note_h = w, h

@@ -2,6 +2,7 @@
 MOMENTOS: as interações novas — comida variada (biscoito/café/água), presente-surpresa,
 balanço (gargalhada), beijo do dia, Tacinho e o tandem de digitação. Offscreen com app real.
 """
+import math
 import sys
 import time
 from pathlib import Path
@@ -24,6 +25,34 @@ from pestinha.ajustes import (  # noqa: E402
 from pestinha.app import PestinhaApp  # noqa: E402
 from pestinha.paths import Paths  # noqa: E402
 from pestinha.settings_store import SettingsStore  # noqa: E402
+from pestinha.world.objetos import NoteThing, NOTE_INCLINACAO_MAX, NOTE_SIZE  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    return QApplication.instance() or QApplication([])
+
+
+def test_postit_integral_no_tamanho_da_janela(qapp):
+    """O papel girado (e a sombra dele) cabe inteiro na janela do post-it."""
+    for small in (False, True):
+        nota = NoteThing("sonho", small=small)
+        w, h = nota.note_w, nota.note_h
+        for inclinacao in (-NOTE_INCLINACAO_MAX, 0.0, NOTE_INCLINACAO_MAX):
+            a = math.radians(inclinacao)
+            c, s = abs(math.cos(a)), abs(math.sin(a))
+            corners = [(x * c - y * s, x * s + y * c)
+                       for x, y in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))]
+            mais_x = max(cx for cx, _cy in corners) + 3       # a sombra passa do papel (3, 4)
+            mais_y = max(cy for _cx, cy in corners) + 4
+            assert mais_x * 2 <= nota.width() and mais_y * 2 <= nota.height()
+
+
+def test_postit_grande_tem_janela_maior_que_o_papel(qapp):
+    """Sem este teste, alguém volta o +tamanho do papel e o topo/fundo cortam de novo."""
+    nota = NoteThing("x")
+    assert nota.width() > nota.note_w and nota.height() > nota.note_h + 6
+    assert nota.width() <= NOTE_SIZE[0] + 40 and nota.height() <= NOTE_SIZE[1] + 40
 
 
 @pytest.fixture
