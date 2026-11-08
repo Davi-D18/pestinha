@@ -75,19 +75,38 @@ def get_active_app():
     return plataforma.processo_ativo()
 
 
-def detect_activity(app, idle_seconds, away_after):
-    """Classifica o momento: AWAY se ficou ocioso demais; senão, a atividade do programa (ou IDLE)."""
+def detect_activity(app, idle_seconds, away_after, jogos=None):
+    """Classifica o momento: AWAY se ficou ocioso demais; senão, a atividade do programa (ou IDLE).
+
+    `jogos` é a lista salva nas configurações: quando vem preenchida, substitui a lista
+    padrão de jogos. Um jogo pode bater por PEDACO do nome do processo ("sober" pega
+    "sober.x86_64"; o nome configurado é o do programa, como aparece nele)."""
     if idle_seconds >= away_after:
         return "AWAY"
     nome = app.lower()
     if nome.endswith(".exe"):
         nome = nome[:-4]
     for activity, apps in ACTIVITY_APPS.items():
-        if nome in apps:
+        if activity == "GAMING":
+            apps = jogos if jogos is not None else apps
+            if any(jogo in nome for jogo in apps):     # pedaço: nomes com versão/extensão batem
+                return activity
+        elif nome in apps:
             return activity
     if any(p in nome for p in MUSIC_PALAVRAS):     # player de qualquer família toca música
         return "MUSIC"
     return "IDLE"
+
+
+def jogo_rodando(jogos):
+    """Jogo da lista rodando AGORA, pelo modo de leitura da sessão.
+
+    É o recurso do Wayland: a janela ativa não dá para ler lá, mas o processo dá
+    (a lista vale por pedaço do nome, igual à detecção por janela)."""
+    from .. import plataforma
+    if plataforma.modo_sessao() != "wayland":
+        return False                                # por janela os outros sistemas já cobrem
+    return plataforma.jogo_rodando(jogos)
 
 
 def is_fullscreen():

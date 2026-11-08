@@ -229,6 +229,22 @@ class SettingsDialog(QDialog):
                 self._update_history_label()
             root.addWidget(group)
 
+        if "jogos" in self.perms:
+            grupo = QGroupBox("Jogos")
+            layout = QVBoxLayout(grupo)
+            self.jogos_edit = QLineEdit(", ".join(self.perms["jogos"]))
+            self.jogos_edit.setToolTip("Nomes do programa em primeiro plano, separados por vírgula.")
+            self.jogos_edit.editingFinished.connect(self._set_jogos)
+            layout.addWidget(self.jogos_edit)
+            desc = QLabel(
+                "Quando um destes PROGRAMAS estiver em primeiro plano (o nome é do processo da janela "
+                "focada), o pet pega o controle e acompanha o jogo — e ele fica visível mesmo em tela "
+                "cheia só nesse modo. Nomes minúsculos, sem .exe, separados por vírgula.")
+            desc.setObjectName("hint")
+            desc.setWordWrap(True)
+            layout.addWidget(desc)
+            root.addWidget(grupo)
+
         self._grupo_sistema(root)
 
         panic = QLabel(f"Pânico (desliga tudo e fica desligado): {config.PANIC_HOTKEY_TEXT}")
@@ -325,6 +341,12 @@ class SettingsDialog(QDialog):
         self.perms[key] = value
         self._sync_enabled()
         self.changed.emit({key: value})          # só o campo mudado: o resto é do app
+
+    def _set_jogos(self):
+        """A caixa de jogos vira a lista (minusculização e limpeza) e volta formatada."""
+        jogos = config.lista_de_jogos(self.jogos_edit.text())
+        self._set("jogos", jogos)
+        self.jogos_edit.setText(", ".join(jogos))
 
     def _sync_enabled(self):
         """Liga ou desliga os itens que dependem de 'Travessuras' (memes, fotos, bilhetes)."""

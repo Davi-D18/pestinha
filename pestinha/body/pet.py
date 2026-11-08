@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QCursor, QFont, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 from ..config import EMOTION_NAMES
@@ -209,6 +209,57 @@ class PetWindow(QWidget):
             x = lado * (largura / 2 - 3)
             p.drawRoundedRect(QRectF(x - 4, -21, 8, 20), 4, 4)
 
+    def _desenha_controle(self, p):
+        """Controle nas patinhas (modo jogo), no plano do corpo, com o pulinho de mola.
+
+        Sobe de baixo na hora em que ele pega (a entrada), e treme na pata a cada
+        pico de ação seus (os "botões" acendem juntos). Como o fone: usa o (0, 0)
+        do corpo já transladado e girado."""
+        st, agora = self.state, time.monotonic()
+        p.save()
+        p.setRenderHint(QPainter.Antialiasing)
+        y = BODY_H / 2 - 12
+        corpo = QColor("#33383f")
+        detalhe = QColor("#c9d2dc")
+        if st.controle_pulse > agora:
+            restante, curto = st.controle_pulse - agora, 0.45
+            if restante > curto:                                # a entrada: desliza de baixo
+                fracao = 0.0 if restante - curto >= 1.0 else 1.0 - (restante - curto) / 0.55
+                p.translate(0, (1.0 - fracao) * 16.0)
+            else:                                               # um pico: o controle treme na pata
+                p.translate(0, -math.sin((curto - restante) / curto * math.pi) * 4.5)
+                detalhe = detalhe.lighter(130)
+        p.setPen(QPen(corpo.darker(150), 1.6))
+        p.setBrush(corpo)
+        p.drawRoundedRect(QRectF(-23, y - 9, 46, 14), 6, 6)     # a mesa do controle
+        p.setBrush(corpo.darker(120))
+        for lado in (-1, 1):                                    # os grips caem nas patinhas
+            p.drawEllipse(QRectF(lado * 21 - 5, y + 2, 10, 10))
+        p.setPen(QPen(detalhe, 2.2, Qt.SolidLine, Qt.RoundCap)) # o cruz direcional, à esquerda
+        p.drawLine(QPointF(-15, y - 2), QPointF(-15, y + 2.4))
+        p.drawLine(QPointF(-17.4, y + 0.2), QPointF(-12.6, y + 0.2))
+        p.setPen(Qt.NoPen)
+        p.setBrush(detalhe)
+        p.drawEllipse(QRectF(-4.5, y - 1, 9, 9))                # um analógico central
+        p.setBrush(detalhe.darker(110))
+        p.drawEllipse(QRectF(-2.4, y - 1.4, 4.6, 4.6))
+        p.setBrush(paralela := QColor("#e0474c"))
+        p.drawEllipse(QRectF(12, y - 2.6, 5, 5))                # os quatro botões, à direita
+        p.setBrush(QColor("#5a7de0"))
+        p.drawEllipse(QRectF(13.6, y - 6.0, 5, 5))
+        p.setBrush(QColor("#46b45e"))
+        p.drawEllipse(QRectF(16.4, y - 2.0, 5, 5))
+        p.setBrush(paralela.darker(110))
+        p.drawEllipse(QRectF(14.8, y + 1.4, 5, 5))
+        p.setBrush(detalhe)
+        p.drawEllipse(QRectF(-20.5, y - 7.2, 4, 3))             # os gatilhos de trás
+        p.drawEllipse(QRectF(16.5, y - 7.2, 4, 3))
+        p.setPen(QPen(corpo, 1.4))                              # o fio até a base dele
+        trilha = QPainterPath(QPointF(-23, y + 4))
+        trilha.cubicTo(QPointF(-34, y + 6), QPointF(-34, y + 14), QPointF(-26, y + 14))
+        p.drawPath(trilha)
+        p.restore()
+
     def _desenha_notas(self, p, st):
         """Notas ♪♫ que sobem do topo da cabeça, alternando de lado, com fade e deriva leve."""
         agora = time.monotonic()
@@ -370,6 +421,8 @@ class PetWindow(QWidget):
         draw_face(p, st.shape, st.gaze, blink, st.emotion, carinho=st.feliz_fechado(), aparencia=self.aparencia)
         if st.groove > 0.55:
             self._desenha_fone(p)                # no plano do corpo: o fone gira com ele
+        if st.controle:
+            self._desenha_controle(p)            # modo jogo: o controle nas patinhas, idem
         if time.monotonic() < st.comer_para:
             self._desenha_mordida(p, st)         # migalhas da mordida, no plano do corpo
         if st.digitando():

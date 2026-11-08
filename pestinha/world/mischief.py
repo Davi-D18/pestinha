@@ -36,15 +36,28 @@ class MischiefEngine(QObject):
 
     # ---------------- agenda ----------------
 
-    def allowed(self, perms, prof, fullscreen):
-        """Diz se uma travessura pode acontecer agora (permissões, tela cheia e limite de objetos)."""
+    def allowed(self, perms, prof, fullscreen, modo_jogo=False):
+        """Diz se uma travessura pode acontecer agora (permissões, tela cheia e limite de objetos).
+
+        No modo jogo o limite cai para 1 objeto na tela: você está ocupado jogando,
+        a tela não pode poluir."""
         if not perms["ativo"] or not perms["travessuras"]:
             return False
         if fullscreen and not perms["tela_cheia"]:
             return False
         if not (perms["memes"] or perms["fotos"] or perms["bilhetes"]):
             return False
-        return len(self.things) < prof["max_objects"]
+        limite = 1 if modo_jogo else prof["max_objects"]
+        return len(self.things) < limite
+
+    def recolher_antigos(self, idade):
+        """Recolhe os objetos que estão na tela há mais de `idade` segundos.
+
+        É a faxina do modo jogo: nada de meme/post-it ocupando a tela do seu jogo."""
+        velhos = [t for t in self.things if time.monotonic() - t.born > idade]
+        for t in velhos:
+            self._remove(t)
+        return len(velhos)
 
     def available(self, emotion, perms, working=False):
         """Ações que as regras permitem agora (a memória escolhe entre elas)."""

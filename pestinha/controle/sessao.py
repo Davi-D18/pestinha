@@ -54,7 +54,8 @@ class SessaoMixin:
         visible = (
             self.perms["ativo"]
             and not self.hidden
-            and (not self.fullscreen or self.perms["tela_cheia"])
+            and (not self.fullscreen or self.perms["tela_cheia"]
+                 or self.pet_state.modo_jogo or self.activity == "GAMING")
         )
         if visible != self.pet.isVisible():
             self.pet.setVisible(visible)

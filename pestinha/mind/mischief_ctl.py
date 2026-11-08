@@ -46,7 +46,7 @@ class MischiefController:
         return now < self.penalty_until
 
     def maybe_act(self, now, dt, bounds, cursor, body, *, motores, activity, emotion, perms, prof,
-                  fullscreen, asleep, protest_stage, working=False):
+                  fullscreen, asleep, protest_stage, working=False, modo_jogo=False):
         """
         Tenta uma travessura neste quadro. A frequência é o disparo do neurônio TRAVESSURA:
         quanto mais ele dispara, mais travessuras por segundo. Devolve a ação escolhida, ou None.
@@ -57,7 +57,7 @@ class MischiefController:
             return None
         if body.held or not body.grounded or self.behavior.mission:
             return None
-        if asleep or protest_stage == 3 or not self.engine.allowed(perms, prof, fullscreen):   # greve para tudo; reclamação/manifestação não param os post-its
+        if asleep or protest_stage == 3 or not self.engine.allowed(perms, prof, fullscreen, modo_jogo=modo_jogo):   # greve para tudo; reclamação/manifestação não param os post-its
             return None
 
         ctx = self.memory.context(activity, emotion)

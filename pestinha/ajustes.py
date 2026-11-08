@@ -119,6 +119,18 @@ SONHO_CHANCE = 0.5              # chance de contar um sonho ao acordar descansad
 SONHO_MIN_PAUSA = 300.0         # s de pausa (suspensão) para voltar contando um sonho
 
 # ---------------------------------------------------------------------------
+# Modo jogo: ele pega o controle e acompanha
+# ---------------------------------------------------------------------------
+JOGO_CONTROLE_EM = 1.6          # s depois da festa até o controle ficar na pata
+JOGO_RECOLHER = 12.0            # s de jogo ausente até recolher o modo e o controle
+JOGO_MEME_VIDA = 12.0           # s que um meme/post-it fica na tela no modo jogo
+JOGO_AFK_COCHILO = 150.0        # s sem input nenhum até ele cochilar no meio
+JOGO_PICO_JANELA = 4.0          # s da janela que mede o seu input (para o pico de ação)
+JOGO_PICO_FRACAO = 0.6          # 0..1: fração de input na janela que vale "pico de ação"
+JOGO_PAUSA_REACAO = 6.0         # s mínimos entre duas reações ao pico
+JOGO_CHANCE_REACAO = 0.6        # chance de reagir a um pico de ação
+
+# ---------------------------------------------------------------------------
 # Pênalti na bolinha
 # ---------------------------------------------------------------------------
 PENALTI_FORCA_ARREMESSO = 350.0 # px/s: soltar a bolinha mais rápido que isso entra no jogo
@@ -263,6 +275,14 @@ _LIMITES = {
     "INTERVALO_BILHETE_DIGITANDO": (float, 0.0, 7200.0),
     "SONHO_CHANCE": (float, 0.0, 1.0),
     "SONHO_MIN_PAUSA": (float, 0.0, 86400.0),
+    "JOGO_CONTROLE_EM": (float, 0.0, 30.0),
+    "JOGO_RECOLHER": (float, 0.0, 300.0),
+    "JOGO_MEME_VIDA": (float, 1.0, 300.0),
+    "JOGO_AFK_COCHILO": (float, 10.0, 1800.0),
+    "JOGO_PICO_JANELA": (float, 1.0, 30.0),
+    "JOGO_PICO_FRACAO": (float, 0.1, 1.0),
+    "JOGO_PAUSA_REACAO": (float, 0.0, 120.0),
+    "JOGO_CHANCE_REACAO": (float, 0.0, 1.0),
     "PENALTI_FORCA_ARREMESSO": (float, 0.0, 4000.0),
     "PENALTI_COLISAO": (float, 10.0, 300.0),
     "PENALTI_ALCANCE_GOL": (float, 10.0, 1000.0),

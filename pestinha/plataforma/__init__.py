@@ -40,9 +40,10 @@ sem_foco_nativo = _backend.sem_foco_nativo
 iniciar_atalho = _backend.iniciar_atalho
 
 # Extras por sistema (Linux os tem; os outros ficam com uma resposta vazia/padrão):
-modo_sessao = getattr(_backend, "modo_sessao", None)
+modo_sessao = getattr(_backend, "modo_sessao", lambda: "desconhecido")
 avisos_sessao = getattr(_backend, "avisos_sessao", lambda: [])
+jogo_rodando = getattr(_backend, "jogo_rodando", lambda _jogos: False)
 
 __all__ = ["NOME_DO_SISTEMA", "ocioso_segundos", "ocioso_confiavel", "processo_ativo", "retangulo_ativo",
            "tela_cheia", "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho", "canal_panic_sinal",
-           "carga_sistema", "modo_sessao", "avisos_sessao"]
+           "carga_sistema", "modo_sessao", "avisos_sessao", "jogo_rodando"]

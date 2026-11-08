@@ -58,6 +58,7 @@ from .ajustes import (
     DURACAO_ATENDE_AGUA,
     DIGITACAO_ATRASO,
     INTERVALO_BILHETE_DIGITANDO,
+    JOGO_MEME_VIDA as VIDA_MEME_DE_JOGO,
     PENALTI_ALCANCE_GOL as GOL_ALCANCE,
     PENALTI_ALTURA_GOL as GOL_ALTURA,
     PENALTI_ALTURA_PULO as PULO_GOLEIRO,
@@ -83,6 +84,7 @@ from .core.protesto import Protesto
 from .log import log
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
+from .mind.jogo import JogoController
 from .mind.lembretes import Lembretes
 from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
@@ -232,6 +234,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.lembretes = Lembretes(self.paths.lembretes)
         self._lembrete_alerta = None
         self.penalti = PenaltiController(self.paths.penalti)
+        self.jogo = JogoController(self.debugging)
         self.castigo = CastigoController(self, self.debugging)
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
@@ -403,7 +406,11 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         if self.toca_musica != getattr(self, "_tocava_musica", self.toca_musica):
             self._tocava_musica = self.toca_musica
             log(f"[música] MPRIS: {'tocando' if self.toca_musica else 'parou'}")
-        self.activity = senses.detect_activity(app, self.idle_seconds, self.prof["away_after"])
+        self.activity = senses.detect_activity(app, self.idle_seconds, self.prof["away_after"],
+                                               jogos=self.perms.get("jogos"))
+        if self.activity != "GAMING" and self.activity != "AWAY" \
+                and senses.jogo_rodando(self.perms.get("jogos")):
+            self.activity = "GAMING"        # Wayland: a janela não se lê, mas o jogo está rodando
         events = self.tracker.observe(app, self.activity)
         self.senses.on_events(events)
         self._tempestade(events)
@@ -599,6 +606,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.sleep.tick(now, body, self.in_flight, self.protest.stage, self.behavior.mission)
         self._sonhos(now)
         self._lembrete_tick(now)
+        self._tick_do_jogo(now)
 
         emotion = self.emotion.update(motor, dt, self.prof)
         if self.protest.stage >= 2 and not self.asleep:
@@ -766,6 +774,63 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         if self._entregar_recado(texto):
             log("[lembretes] entregou o recado na hora")
 
+    def _tick_do_jogo(self, agora):
+        """Modo jogo: um jogo da lista em primeiro plano e ele pega o controle para acompanhar."""
+        mouse_moving = agora - self.mouse_moved_at < MOUSE_QUIET
+        input_ativo = mouse_moving or (senses.idle_confiavel() and self.idle_seconds < 0.5)
+        eventos = self.jogo.tick(
+            agora,
+            jogando=self.activity == "GAMING",
+            input_ativo=input_ativo,
+            afk_segundos=self.idle_seconds if senses.idle_confiavel() else 0.0,
+            livre=not (self.asleep or self.pet.body.held or self.behavior.mission is not None
+                       or self.in_flight or self.castigo.dentro or self.pet_state.quieto(agora)
+                       or self.hidden),
+        )
+        if eventos:
+            self._aplicar_jogo(eventos, agora)
+
+    def _aplicar_jogo(self, eventos, agora):
+        """Os eventos do modo jogo viram cara e corpo: festa, controle, reação, cochilo e recolher."""
+        st = self.pet_state
+        body = self.pet.body
+        for evento in eventos:
+            if evento == "festejar":
+                st.modo_jogo = True
+                st.feliz_ate = agora + 2.5
+                self.emotion.force("feliz", 2.0, agora, PRIORITY["carinho"])
+                if body.grounded and not body.held:
+                    body.jump(0.0, -380.0)            # pulinho de "vamos jogar!"
+                log("[jogo] você entrou no jogo: festa!")
+            elif evento == "pegou_controle":
+                st.controle = True
+                st.controle_pulse = agora + 1.0             # a mola: o controle sobe de baixo
+                log("[jogo] pegou o controle")
+            elif evento == "pico":
+                gatilho = random.choice(("sobressalto", "alegre"))
+                st.controle_pulse = max(st.controle_pulse, agora + 0.45)   # o controle treme com você
+                if gatilho == "sobressalto":
+                    self.emotion.force("assustado", 0.9, agora, PRIORITY["assustado"])
+                    if body.grounded and not body.held:
+                        body.jump(0.0, -300.0)        # leva um susto e levanta da cadeirinha
+                else:
+                    st.feliz_ate = agora + 1.5
+                    self.emotion.force("feliz", 1.2, agora, PRIORITY["carinho"])
+                log(f"[jogo] pico de ação: {gatilho}")
+            elif evento == "cochilar":
+                st.controle = False                   # o controle fica no colo: bocejo e cochilo
+                self.emotion.force("dormindo", 240.0, agora, PRIORITY["dormindo"])
+                log("[jogo] cochilo no meio do jogo")
+            elif evento == "acordou":
+                st.controle = True
+                self.emotion.force("contente", 1.0, agora, PRIORITY["carinho"])
+                log("[jogo] acordou e voltou ao jogo")
+            elif evento == "soltou":
+                st.modo_jogo = False
+                st.controle = False
+                log("[jogo] acabou a partida: recolheu")
+        self.update_visibility()
+
     def _penalti_frame(self, agora, corpo, bola):
         """Um passo do pênalti: goleiro desconfiado, defesa em cartaz, gol em fogos."""
         acao = self.penalti.tick(agora, bola, corpo, self.bounds()[3],
@@ -860,6 +925,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.presente.raise_()               # idem a caixinha (continua clicável)
             self._presente_elevado_em = now
         self.maybe_mischief(now, dt, bounds, cursor, motores)
+        if self.pet_state.modo_jogo:
+            self.mischief.recolher_antigos(VIDA_MEME_DE_JOGO)   # faxina: a sua tela de jogo, limpa
 
     def _atualizar_mesa(self, now):
         """O neurônio SENTAR decide se ele senta no notebook. Aqui só entram as condições do corpo."""
@@ -867,6 +934,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         motores = self.brain.motor_activity()
         pode_sentar = (not self.asleep and self.pet.body.grounded and not self.pet.body.held
                        and not self.behavior.mission and not self.in_flight
+                       and not self.pet_state.modo_jogo                     # no jogo, não senta
                        and not self.castigo.dentro and self.castigo.fuga is None)   # preso ou fugindo não senta
         self.mesa.tick(now, rates, motores["SENTAR"], pode_sentar, self.behavior.play)
         self.pet_state.at_desk = self.mesa.sentado
@@ -895,6 +963,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             activity=self.activity, emotion=self.pet_state.emotion, perms=self.perms, prof=self.prof,
             fullscreen=self.fullscreen, asleep=self.asleep, protest_stage=self.protest.stage,
             working=self.activity in ("PROGRAMMING", "DESIGNING") and not self.mesa.sentado,
+            modo_jogo=self.pet_state.modo_jogo,
         )
 
     # ---------------- interação ----------------

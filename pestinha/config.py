@@ -51,6 +51,7 @@ DEFAULT_PERMISSIONS = {
     "fogos": True,             # fogo de artifício quando ele fica feliz de verdade (rede)
     "comida": True,            # biscoito/café/água: você oferece pelo menu e ele come (energia + humor)
     "presente": True,          # caixinha-surpresa: ele vai até ela e abre (festa, bilhete ou cara triste)
+    "jogos": ["valorant", "csgo", "cs2", "minecraft"],   # jogos que ele acompanha (modulo jogo)
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -71,7 +72,7 @@ PERMISSION_GROUPS = [
     ]),
     ("Contexto", [
         ("tela_cheia", "Aparecer em tela cheia (experimental)",
-         "Por padrão ele some em jogos, vídeos e apresentações."),
+         "Por padrão ele some em jogos, vídeos e apresentações; o modo jogo é a exceção."),
     ]),
     ("Rotina", [
         ("rotina", "Aprender minha rotina",
@@ -99,6 +100,20 @@ def permissoes_validas(novo):
     """Mantém só as chaves conhecidas e com o mesmo tipo do padrão."""
     return {k: v for k, v in novo.items()
             if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
+
+
+def lista_de_jogos(texto):
+    """A linha de texto das configurações vira a lista de jogos (para o modo jogo).
+
+    Nomes minúsculos do PROGRAMA em primeiro plano, sem .exe e sem repetição; vazio devolve []."""
+    jogos = []
+    for pedaco in (texto.split(",") if isinstance(texto, str) else []):
+        nome = pedaco.strip().lower()
+        if nome.endswith(".exe"):
+            nome = nome[:-4]
+        if nome and nome not in jogos:
+            jogos.append(nome)
+    return jogos
 
 
 def load_permissions(paths):

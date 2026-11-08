@@ -120,6 +120,25 @@ def processo_ativo():
         return "unknown"
 
 
+def jogo_rodando(jogos):
+    """Algum jogo da lista tem um processo rodando AGORA (leitura por processo, sem janelas).
+
+    É o recurso do Wayland: a janela ativa não dá para ler lá, mas o PROGRAMA rodando
+    dá. Sem nome configurado, devolve False. Em Windows/macOS, a leitura por janela
+    funciona, então esta via não é usada."""
+    nomes = [j.lower().strip() for j in (jogos or []) if isinstance(j, str) and j.strip()]
+    if not nomes:
+        return False
+    for processo in psutil.process_iter(["name"]):
+        try:
+            nome = (processo.info["name"] or "").lower()
+        except psutil.Error:
+            continue
+        if any(jogo in nome for jogo in nomes):
+            return True
+    return False
+
+
 def retangulo_ativo(escala=1.0):
     """Retângulo da janela ativa (pixels), ou None se não houver janela ativa."""
     janela = _janela_ativa()

@@ -49,6 +49,7 @@ class Behavior:
         self.toy = None             # (x, y) da bolinha, quando ela está na tela
         self.ball = None            # a bolinha (toy.Ball), ligada pelo app
         self.play = None            # Play: estilo de brincadeira do pet, ligado pelo app
+        self.mirada_jogo = (0.0, -0.9)   # para onde olha no modo jogo (a tela, ou desvia)
         self.play_pull = 0.0        # 0..1, da rede: quanto ele quer brincar agora (ver mesa.pull)
         self.canto = False          # o neurônio CANTO está disparando: ele vai para o cantinho
         self.fuga_alvo = None       # x para onde ele está fugindo do cantinho (None: não está fugindo)
@@ -130,6 +131,12 @@ class Behavior:
             dx, dy = cursor[0] - body.x, cursor[1] - body.y  # reclamação/revolução: encara você
             dist = math.hypot(dx, dy) or 1.0
             gaze = (dx / dist, dy / dist)
+        elif body.upright() and self.state.modo_jogo:
+            if now >= self.next_glance:                 # a cada olhada: firma a tela ou desvia um pouquinho
+                self.next_glance = now + GLANCE_EVERY
+                self.mirada_jogo = ((0.0, -0.9) if random.random() < 0.6
+                                    else (random.uniform(-0.4, 0.4), -0.85))
+            gaze = self.mirada_jogo                     # a tela fica "acima" do pet: ele acompanha
         elif body.upright():
             if now >= self.next_glance:                 # WATCH alto: fixa o cursor; baixo: olha em volta
                 self.next_glance = now + GLANCE_EVERY
@@ -200,6 +207,14 @@ class Behavior:
 
         # goleiro do pênalti: parado no lugar; o pulinho de defesa fica por conta do app
         if st.penalti:
+            body.vx = 0.0
+            self.next_roam = now + 1.0
+            return
+
+        # modo jogo: parado no apoio, olhando para a tela (a festa e as reações ficam com o app)
+        if st.modo_jogo:
+            if self.mission:
+                self.drop_carried()            # nada carregado enquanto acompanha o jogo
             body.vx = 0.0
             self.next_roam = now + 1.0
             return

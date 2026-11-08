@@ -49,6 +49,9 @@ class PetState:
         self.digitar_para = 0.0     # tandem de digitação: patinhas digitando até aqui
         self.quieto_ate = 0.0       # modo Tacinho: fica quietinho num canto até aqui
         self.penalti = False        # em pênalti: fica de goleiro, sem passear
+        self.modo_jogo = False      # modo jogo: pegou o controle e acompanha (fica visível mesmo em tela cheia)
+        self.controle = False       # o controle na pata (o rosto desenha o joystick)
+        self.controle_pulse = 0.0   # quando o controle "pulsa" (entrada e pico: mola do desenho)
         self.dream_path = None      # caminho da imagem do sonho (mostrada enquanto ele dorme)
         self.dream_de = 0.0         # quando o sonho começou (para o fade do balão)
         self.dream_ate = 0.0        # até quando o sonho fica na tela
