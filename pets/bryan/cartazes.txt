@@ -101,3 +101,12 @@ ESTOU AQUI PENSANDO NOS MEUS ERROS.
 #@$%&!!!
 $%#@&*@#!!
 @!#%$...
+
+# Placas da brincadeira de rebater a bolinha (sai sozinha depois de uns 15 s ou no clique)
+[brincadeira]
+TOCA DE NOVO!
+BOA REBATIDA!
+VEM QUE TEM!
+PAREDE DE PIXELS
+AGORA VAI DE VOLTA
+MANDA MAIS!

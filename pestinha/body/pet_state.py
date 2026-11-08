@@ -48,7 +48,8 @@ class PetState:
         self.beijo_para = 0.0       # coraçãozinho do beijo na tela até aqui
         self.digitar_para = 0.0     # tandem de digitação: patinhas digitando até aqui
         self.quieto_ate = 0.0       # modo Tacinho: fica quietinho num canto até aqui
-        self.penalti = False        # em pênalti: fica de goleiro, sem passear
+        self.rebate = False         # brincadeira de rebate: ele fica no canto tocando a bolinha
+        self.rebate_canto = None    # x do canto dele no rebate (o behavior desliza até lá)
         self.modo_jogo = False      # modo jogo: pegou o controle e acompanha (fica visível mesmo em tela cheia)
         self.controle = False       # o controle na pata (o rosto desenha o joystick)
         self.controle_pulse = 0.0   # quando o controle "pulsa" (entrada e pico: mola do desenho)

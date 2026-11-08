@@ -119,6 +119,15 @@ SONHO_CHANCE = 0.5              # chance de contar um sonho ao acordar descansad
 SONHO_MIN_PAUSA = 300.0         # s de pausa (suspensão) para voltar contando um sonho
 
 # ---------------------------------------------------------------------------
+# Brincadeira de rebate: toca a bolinha de canto em canto
+# ---------------------------------------------------------------------------
+REBATE_ALCANCE = 0.92           # 0..1 do caminho até a parede oposta que o toco deve cobrir
+REBATE_ARCO = -420.0            # px/s (vy) do toco: o arco da bolinha no chutão
+REBATE_PLACA_CHANCE = 0.12      # chance, a cada toco dele, de levantar uma placa
+REBATE_PLACA_PAUSE = 60.0       # s mínimos entre placas (nada frequente)
+REBATE_PLACA_VIDA = 15.0        # s que a placa fica na tela até sumir sozinha
+
+# ---------------------------------------------------------------------------
 # Modo jogo: ele pega o controle e acompanha
 # ---------------------------------------------------------------------------
 JOGO_CONTROLE_EM = 1.6          # s depois da festa até o controle ficar na pata
@@ -129,17 +138,6 @@ JOGO_PICO_JANELA = 4.0          # s da janela que mede o seu input (para o pico 
 JOGO_PICO_FRACAO = 0.6          # 0..1: fração de input na janela que vale "pico de ação"
 JOGO_PAUSA_REACAO = 6.0         # s mínimos entre duas reações ao pico
 JOGO_CHANCE_REACAO = 0.6        # chance de reagir a um pico de ação
-
-# ---------------------------------------------------------------------------
-# Pênalti na bolinha
-# ---------------------------------------------------------------------------
-PENALTI_FORCA_ARREMESSO = 350.0 # px/s: soltar a bolinha mais rápido que isso entra no jogo
-PENALTI_COLISAO = 64.0          # px: bolinha perto do corpo dele é defesa
-PENALTI_ALCANCE_GOL = 140.0     # px: passar a essa distância dele é gol
-PENALTI_ALTURA_GOL = 200.0      # px: gol só perto do chão (a "trave" subiu no alto)
-PENALTI_VIDA_JOGADA = 5.0       # s: jogada que não vira nada é cancelada
-PENALTI_EMPURRAO = 300.0        # px/s do pulinho lateral do goleiro
-PENALTI_ALTURA_PULO = -430.0    # px/s do pulinho do goleiro (vy)
 
 # ---------------------------------------------------------------------------
 # Malhação
@@ -275,6 +273,11 @@ _LIMITES = {
     "INTERVALO_BILHETE_DIGITANDO": (float, 0.0, 7200.0),
     "SONHO_CHANCE": (float, 0.0, 1.0),
     "SONHO_MIN_PAUSA": (float, 0.0, 86400.0),
+    "REBATE_ALCANCE": (float, 0.2, 1.0),
+    "REBATE_ARCO": (float, -3000.0, 0.0),
+    "REBATE_PLACA_CHANCE": (float, 0.0, 1.0),
+    "REBATE_PLACA_PAUSE": (float, 0.0, 3600.0),
+    "REBATE_PLACA_VIDA": (float, 1.0, 300.0),
     "JOGO_CONTROLE_EM": (float, 0.0, 30.0),
     "JOGO_RECOLHER": (float, 0.0, 300.0),
     "JOGO_MEME_VIDA": (float, 1.0, 300.0),
@@ -283,13 +286,6 @@ _LIMITES = {
     "JOGO_PICO_FRACAO": (float, 0.1, 1.0),
     "JOGO_PAUSA_REACAO": (float, 0.0, 120.0),
     "JOGO_CHANCE_REACAO": (float, 0.0, 1.0),
-    "PENALTI_FORCA_ARREMESSO": (float, 0.0, 4000.0),
-    "PENALTI_COLISAO": (float, 10.0, 300.0),
-    "PENALTI_ALCANCE_GOL": (float, 10.0, 1000.0),
-    "PENALTI_ALTURA_GOL": (float, 10.0, 1000.0),
-    "PENALTI_VIDA_JOGADA": (float, 0.5, 60.0),
-    "PENALTI_EMPURRAO": (float, 0.0, 2000.0),
-    "PENALTI_ALTURA_PULO": (float, -2000.0, 0.0),
     "GASTO_TREINO": (float, 0.0, 1.0),
     "LIMIAR_SENTAR_HZ": (float, 0.0, 200.0),
     "LIMIAR_LEVANTAR_HZ": (float, 0.0, 200.0),

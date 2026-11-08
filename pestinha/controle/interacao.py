@@ -132,8 +132,8 @@ class InteracaoMixin:
         item("Oferecer biscoito", lambda: self.menu_comida("biscoito"), perms["comida"])
         item("Servir o café", lambda: self.menu_comida("cafe"), perms["comida"])
         item("Água fresca", lambda: self.menu_comida("agua"), perms["comida"])
-        item("Sair do pênalti" if self.penalti.ativo else "Pênalti com a bolinha",
-             self.menu_penalti, perms["bolinha"])
+        item("Sair da brincadeira de rebater" if self.rebate.ativo else "Rebater com a bolinha",
+             self.menu_rebate, perms["bolinha"])
         item("Recolher o presente" if self._presente_na_tela else "Dar um presente",
              self.menu_presente, perms["presente"])
         item("Deixar um recado...", self.menu_recado, perms["bilhetes"])
@@ -223,20 +223,29 @@ class InteracaoMixin:
             texto, quando = resultado
             log(f"[lembretes] recado para {time.strftime('%H:%M', time.localtime(quando))}: {texto}")
 
-    def menu_penalti(self):
-        """Menu: liga/desliga o pênalti: ele fica de goleiro; a sua bolinha arremessada é o chute."""
-        ativo = not self.penalti.ativo
-        self.penalti.ativo = ativo
-        self.penalti.arremesso = None
-        self.pet_state.penalti = ativo
-        self.ball.aim_hint = ativo                   # a linha de mira só existe no jogo
+    def menu_rebate(self):
+        """Menu: liga/desliga a brincadeira de rebater: ele corre atrás da bolinha e chuta do canto."""
+        ativo = not self.rebate.ativo
         if ativo:
-            self.ball_stored = False                 # garante a bolinha na tela
-            self.behavior.drop_carried()             # nada de missão com o goleiro parado
-            self.menu_place_ball()
-            log("[pênalti] começou: arremessa a bolinha nele")
+            agora = time.monotonic()
+            self.rebate.comecar(agora)
+            self.pet_state.rebate = True
+            self.pet_state.rebate_canto = None                  # o alvo vem do rali (frame)
+            self.ball_stored = False                            # garante a bolinha na tela
+            self.behavior.drop_carried()                        # nada de missão com o rali em curso
+            self.ball.carried = False
+            self.ball.body.x = self.pet.body.x + 80.0           # a bolinha nos pezinhos dele
+            self.ball.body.y = self.bounds()[3] - 40
+            self.ball.body.vx = self.ball.body.vy = 0.0
+            log("[rebate] começou: ele corre atrás da bolinha e chuta do canto")
         else:
-            log("[pênalti] acabou a partida")
+            self.rebate.encerrar()
+            self.pet_state.rebate = False
+            self.pet_state.rebate_canto = None
+            self.ball.carried = False
+            if self._placa_rali:
+                self._fechar_placa(self._placa_rali[0])         # a placa do rali sai junto
+            log("[rebate] acabou a brincadeira")
         self.update_visibility()
 
     def menu_quieto(self):

@@ -225,11 +225,6 @@ class Paths:
         return self.memory / "lembretes.json"
 
     @property
-    def penalti(self):
-        """Histórico das suas miras no pênalti (para ele desconfiar do seu lado de sempre)."""
-        return self.memory / "penalti.json"
-
-    @property
     def timeline(self):
         """Sua rotina, um minuto por linha (só com 'Aprender minha rotina' ligado)."""
         return self.memory / "timeline.csv"

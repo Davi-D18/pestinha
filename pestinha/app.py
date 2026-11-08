@@ -59,12 +59,7 @@ from .ajustes import (
     DIGITACAO_ATRASO,
     INTERVALO_BILHETE_DIGITANDO,
     JOGO_MEME_VIDA as VIDA_MEME_DE_JOGO,
-    PENALTI_ALCANCE_GOL as GOL_ALCANCE,
-    PENALTI_ALTURA_GOL as GOL_ALTURA,
-    PENALTI_ALTURA_PULO as PULO_GOLEIRO,
-    PENALTI_COLISAO as COLISAO_GOL,
-    PENALTI_EMPURRAO as EMPURRAO_GOLEIRO,
-    PENALTI_VIDA_JOGADA as VIDA_JOGADA,
+    REBATE_PLACA_VIDA as VIDA_PLACA,
 )
 from .body.behavior import Behavior
 from .body.bolinha import Ball, load_sprite
@@ -90,9 +85,9 @@ from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
+from .mind.rebate import CANTO_MARGEM, RebateController
 from .mind.sleep import SleepController
 from .mind import sonho
-from .mind.penalti import DEFESAS_CARTAZ, PenaltiController
 from .paths import Paths
 from .sense import senses
 from .sense.timeline import TimelineRecorder
@@ -233,7 +228,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.mesa = MesaController(self.debugging, self)
         self.lembretes = Lembretes(self.paths.lembretes)
         self._lembrete_alerta = None
-        self.penalti = PenaltiController(self.paths.penalti)
+        self.rebate = RebateController(self.debugging, self.conteudo.signs)
+        self._placa_rali = None     # (placa, quando sai sozinha) do rali
         self.jogo = JogoController(self.debugging)
         self.castigo = CastigoController(self, self.debugging)
         paper = load_sprite(self.conteudo.bolinha_papel)
@@ -831,31 +827,45 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 log("[jogo] acabou a partida: recolheu")
         self.update_visibility()
 
-    def _penalti_frame(self, agora, corpo, bola):
-        """Um passo do pênalti: goleiro desconfiado, defesa em cartaz, gol em fogos."""
-        acao = self.penalti.tick(agora, bola, corpo, self.bounds()[3],
-                                 GOL_ALCANCE, GOL_ALTURA, COLISAO_GOL, VIDA_JOGADA)
-        if acao is None:
-            return
-        tipo, *resto = acao
-        if tipo == "dive":
-            lado = resto[0] if resto else 1
-            corpo.jump(lado * EMPURRAO_GOLEIRO, PULO_GOLEIRO)   # o pulinho do goleiro
-        elif tipo == "defesa":
-            self.emotion.force("contente", 1.8, agora, PRIORITY["carinho"])
-            self._cartaz_da_defesa(corpo)
-            log("[pênalti] defendeu!")
-        elif tipo == "gol":
-            self.festa.fogos.launch(corpo.x, corpo.y - 60.0)    # passou da trave: festa
-            log("[pênalti] gol — fogos!")
+    def _rebate_frame(self, agora):
+        """Um passo do rali: ele corre atrás da bolinha, leva ao canto e chuta (com a placa à parte)."""
+        corpo, bola = self.pet.body, self.ball
+        left, _top, right, _bottom = self.bounds()
+        alvo, eventos = self.rebate.tick(
+            agora, corpo, bola, self.bounds()[3], left, right,
+            livre=not (self.asleep or corpo.held or self.pet_state.quieto(agora)
+                       or self.castigo.dentro),
+        )
+        self.pet_state.rebate_canto = alvo          # para onde ele desliza (None: parado)
+        for evento in eventos:
+            if evento == "tocou":
+                self.emotion.force("feliz", 1.2, agora, PRIORITY["carinho"])
+                lado_do_toco = -self.rebate.lado
+                if corpo.grounded and not corpo.held:
+                    corpo.jump(lado_do_toco * 180.0, -300.0)   # o pulinho de chute
+                if self.debugging():
+                    log("[rebate] chutou para o outro canto")
+            elif isinstance(evento, tuple) and evento[0] == "placa":
+                self._placa_do_rali(evento[1], agora)
+        if self._placa_rali and agora >= self._placa_rali[1]:
+            self._fechar_placa(self._placa_rali[0])     # a placa passou da vida: some sozinha
 
-    def _cartaz_da_defesa(self, corpo):
-        """Cartaz rápido de defesa ('Na barra!', 'NÃO PASSA!'): apoiado no pet, cai como objeto."""
-        ex, ey = corpo.extents()
-        cartaz = SignThing(random.choice(DEFESAS_CARTAZ), "small")
-        cartaz.place(corpo.x, corpo.y - ey - cartaz.height() / 2 + 10.0)
-        self.mischief.things.append(cartaz)
-        cartaz.show()
+    def _placa_do_rali(self, texto, agora):
+        """Placa do rali: apoiada na cabeça dele, some sozinha (VIDA_PLACA) ou no clique."""
+        ex, ey = self.pet.body.extents()
+        placa = SignThing(texto, "small")
+        placa.place(self.pet.body.x, self.pet.body.y - ey - placa.height() / 2 + 4.0)
+        placa.clicked.connect(self._fechar_placa)
+        self._placa_rali = (placa, agora + VIDA_PLACA)
+        placa.show()
+        if self.debugging():
+            log(f"[rebate] placa: {texto}")
+
+    def _fechar_placa(self, placa):
+        """A placa do rali sai (clique nela) — e deixa de ter prazo."""
+        self._placa_rali = None
+        placa.close()
+        placa.deleteLater()
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
@@ -894,7 +904,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.protest_ctl.carry(now, self.asleep or preso)
         ball_bounds = self._bounds_at(areas, self.ball.body.x, self.ball.body.y)
         self.ball.step(dt, ball_bounds, areas, monitores)
-        self._penalti_frame(now, body, self.ball)
+        self._rebate_frame(now)
         if self.comida.isVisible():
             comida_bounds = self._bounds_at(areas, self.comida.body.x, self.comida.body.y)
             self.comida.step(dt, comida_bounds, areas, monitores)
@@ -912,7 +922,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             k = now - self._prev_cursor_t
             self.cursor_vel = ((cursor[0] - self._prev_cursor[0]) / k, (cursor[1] - self._prev_cursor[1]) / k)
         self._prev_cursor, self._prev_cursor_t = cursor, now
-        self.last_cursor_push = push_from_cursor(self.ball, cursor, self.cursor_vel, now, self.last_cursor_push)
+        if not self.pet_state.rebate:                     # no rali, o chute é o arraste (estilingue)
+            self.last_cursor_push = push_from_cursor(self.ball, cursor, self.cursor_vel, now, self.last_cursor_push)
         bounce_off(self.ball, [(g.x(), g.y(), g.width(), g.height())
                                for g in (t.geometry() for t in self.mischief.things if not t.carried)])
         self.behavior.toy = (self.ball.body.x, self.ball.body.y) if self.ball.isVisible() else None

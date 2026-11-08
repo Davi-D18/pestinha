@@ -34,6 +34,7 @@ DEFAULT_SIGNS = {
     "xingamento": ["@#$%@!!!!", "%&#@*!!", "#@$%&!!!"],              # no cantinho, com raiva
     "acordo": ["ACORDO FECHADO"],
     "desistiu": ["...tá. passou."],
+    "brincadeira": ["VAI!", "BOA!", "MANDE MAIS!", "TOCA DE NOVO!", "QUASE!"],   # no rebate
     # tristeza (a versão "greve" do sentimento triste)
     "saudade": ["alô?", "tem alguém aí?"],
     "chorando": ["tô chorando :(", "me visita?"],

@@ -38,11 +38,11 @@ class Ball(QWidget):
         self.body = Body(x, y, RADIUS, RADIUS)
         self.angle = 0.0
         self.dragging = False
+        self.carried = False        # ele levou a bolinha com ele (a física fica zerada)
         self._button = None         # botão que começou o arraste
         self.last_release = -1e9
         self._grab = (0.0, 0.0)
         self._samples = []
-        self.aim_hint = False       # linha de mira no arraste (modo pênalti)
 
     def showEvent(self, event):
         """Ao aparecer, a bolinha não rouba o foco do programa que você está usando."""
@@ -65,12 +65,18 @@ class Ball(QWidget):
         self.body.vy = vy
         self.body.grounded = False
         self.body.platform = None
+        self.carried = False
 
     def step(self, dt, bounds, areas=None, monitors=None):
-        """Um passo de física: a bolinha rola conforme o pet anda e para aos poucos."""
-        if not self.dragging:
-            self.angle += self.body.vx * dt * 0.8        # rola conforme anda
-            self.body.step(dt, bounds, [], areas, monitors)
+        """Um passo de física: a bolinha rola conforme o pet anda e para aos poucos.
+
+        No colo dele (carried), a física fica zerada: a posição fica por conta de quem carrega."""
+        if self.dragging:
+            return self.place()
+        if self.carried:
+            return self.place()
+        self.angle += self.body.vx * dt * 0.8        # rola conforme anda
+        self.body.step(dt, bounds, [], areas, monitors)
         self.place()
         self.update()
 
@@ -84,7 +90,6 @@ class Ball(QWidget):
             p.rotate(math.degrees(self.angle))      # a foto gira junto com a bolinha
             p.drawPixmap(QRectF(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), self.sprite, QRectF(self.sprite.rect()))
             p.resetTransform()
-            self._pinta_mira(p, c)
             p.end()
             return
         if self.kind == "papel":
@@ -168,28 +173,7 @@ class Ball(QWidget):
         p.setPen(QPen(QColor("#14401f"), 2))
         p.drawLine(QPointF(-RADIUS * 0.8, 0), QPointF(RADIUS * 0.8, 0))
         p.restore()
-        self._pinta_mira(p, c)
         p.end()
-
-    def _pinta_mira(self, p, c):
-        """Linha de mira no arraste (modo pênalti): sai da bolinha para onde o seu arraste aponta."""
-        if not (self.aim_hint and self.dragging and len(self._samples) >= 2):
-            return
-        (_t0, x0, y0), (_t1, x1, y1) = self._samples[-2], self._samples[-1]
-        dx, dy = x1 - x0, y1 - y0
-        tamanho = math.hypot(dx, dy)
-        if tamanho <= 2.0:
-            return
-        dx, dy = dx / tamanho, dy / tamanho
-        p.setPen(QPen(QColor("#ffd84d"), 2, Qt.DashLine))
-        p.setBrush(Qt.NoBrush)
-        original = QPointF(c.x() + dx * (RADIUS + 4), c.y() + dy * (RADIUS + 4))
-        ponta = QPointF(c.x() + dx * (RADIUS + 180.0), c.y() + dy * (RADIUS + 180.0))
-        p.drawLine(original, ponta)
-        lateral = QPointF(-dy * 6.0, dx * 6.0)      # a pontinha da flecha
-        p.setBrush(QColor("#ffd84d"))
-        for fim in (ponta + lateral, ponta - lateral):
-            p.drawLine(QPointF(ponta), QPointF(fim))
 
     # ---------------- mouse ----------------
 

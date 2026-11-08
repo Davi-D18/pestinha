@@ -16,6 +16,8 @@ import random
 
 from ..core.physics import CLOSE_BUTTONS, GRAVITY, wrap_angle
 
+REBATE_ANDAR = 300.0        # px/s do deslize dele no rali (perseguição e levar)
+
 STILL = ("assustado", "dramatico", "dormindo")     # emoções que não passeiam
 GLANCE_EVERY = 1.2          # s: a cada olhada, decide se fixa o cursor ou olha em volta
 
@@ -205,9 +207,16 @@ class Behavior:
             self.next_roam = now + 1.0
             return
 
-        # goleiro do pênalti: parado no lugar; o pulinho de defesa fica por conta do app
-        if st.penalti:
-            body.vx = 0.0
+        # brincadeira de rebate: deslize até o canto dele e fica lá; o toco é do app
+        if st.rebate:
+            if st.rebate_canto is not None and abs(body.x - st.rebate_canto) > 40:
+                self._slide_to(st.rebate_canto, REBATE_ANDAR)   # atrás da bolinha, ou levando-a
+            else:
+                body.vx = 0.0
+                if self.toy:                              # de olho na bolinha do rali
+                    dx, dy = self.toy[0] - body.x, self.toy[1] - body.y
+                    dist = math.hypot(dx, dy) or 1.0
+                    st.gaze = (dx / dist, dy / dist)
             self.next_roam = now + 1.0
             return
 
